@@ -3,8 +3,17 @@
     <!-- ===================== 顶部标题栏 ===================== -->
     <header class="app-header">
       <div class="app-header__inner">
-        <!-- 标题跟随当前路由（route.meta.title） -->
-        <h1 class="app-header__title">{{ pageTitle }}</h1>
+        <div class="app-header__left">
+          <!-- 非 Tab 页面（如「学新词」）显示返回按钮，符合"详情页"的直觉 -->
+          <button v-if="!isTabRoute" class="icon-btn icon-btn--back" title="返回" @click="goBack">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <!-- 标题跟随当前路由（route.meta.title） -->
+          <h1 class="app-header__title">{{ pageTitle }}</h1>
+        </div>
 
         <!-- 快捷主题切换（设置页里也有一个入口） -->
         <button
@@ -54,17 +63,18 @@
  * - AppUI：全局 Toast 与确认弹窗（替代原生 alert/confirm）
  */
 import { computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AppUI from './components/AppUI.vue'
 import { useStore } from './composables/useStore'
 
 const route = useRoute()
+const router = useRouter()
 const { state, setTheme } = useStore()
 
-/* 底部 Tab 定义：icon 为若干条 SVG 路径（d 属性） */
+/* 底部 Tab 定义：icon 为若干条 SVG 路径（d 属性）
+   注意：「学新词」不占 Tab，它从首页看板的入口进入（详情页形式，带返回按钮） */
 const tabs = [
   { path: '/', label: '看板', icon: ['M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M9 22V12h6v10'] },
-  { path: '/learn', label: '学新词', icon: ['M4 5.5A2.5 2.5 0 0 1 6.5 3H20v14H6.5A2.5 2.5 0 0 0 4 19.5z', 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20v4H6.5A2.5 2.5 0 0 1 4 19.5z'] },
   { path: '/review', label: '复习', icon: ['M23 4v6h-6', 'M20.49 15a9 9 0 1 1-2.12-9.36L23 10'] },
   { path: '/practice', label: '练习', icon: ['M12 20h9', 'M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'] },
   { path: '/stats', label: '统计', icon: ['M18 20V10', 'M12 20V4', 'M6 20v-6'] },
@@ -73,6 +83,15 @@ const tabs = [
 
 /* 当前页面标题 */
 const pageTitle = computed(() => route.meta.title || '四级背单词')
+
+/* 当前路由是否为底部 Tab 之一（用于决定是否显示返回按钮） */
+const isTabRoute = computed(() => tabs.some((t) => t.path === route.path))
+
+/** 返回上一页；没有历史记录时回到看板 */
+function goBack() {
+  if (window.history.length > 1) router.back()
+  else router.push('/')
+}
 
 /* 主题状态与切换 */
 const isDark = computed(() => state.settings.theme === 'dark')
