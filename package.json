@@ -1,0 +1,20 @@
+{
+  "name": "cet4-forgetting-curve",
+  "version": "1.0.0",
+  "private": true,
+  "description": "纯前端英语四级遗忘曲线背单词应用 (Vue3 + Vite, 无后端, localStorage)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "vite": "^5.2.8"
+  }
+}

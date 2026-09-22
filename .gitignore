@@ -1,0 +1,17 @@
+# 依赖目录
+node_modules/
+
+# 构建产物
+dist/
+
+# 日志
+*.log
+npm-debug.log*
+
+# 系统/编辑器
+.DS_Store
+.idea/
+.vscode/
+
+# 本地缓存（非项目数据，运行配置）
+.workbuddy/
