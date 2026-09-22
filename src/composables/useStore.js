@@ -1,5 +1,5 @@
 import { reactive, watch, computed } from 'vue'
-import { WORDS } from '../data/words'
+import { WORDS, getWordsByList, LIST_SIZES, DEFAULT_LIST } from '../data'
 
 /**
  * 数据层（纯前端，无后端）
@@ -40,7 +40,8 @@ function defaultSettings() {
     batchSize: 20, // 每次学习的新词数量
     speechEnabled: true, // 是否开启单词朗读
     speechRate: 1, // 朗读语速 0.5 - 2
-    order: 'shuffle' // 出词顺序：'shuffle' 乱序（默认） | 'alpha' 正序
+    order: 'shuffle', // 出词顺序：'shuffle' 乱序（默认） | 'alpha' 正序
+    learnList: DEFAULT_LIST // 学新词使用的词书：'regular' 常规 | 'high' 高频
   }
 }
 
@@ -190,10 +191,18 @@ function isDue(word) {
  * 取最多 limit 个新词（完全没学过的词）
  * 默认乱序返回，避免字母序背诵
  */
-function getNewWords(limit) {
-  const list = WORDS.filter((w) => !state.progress[w.word])
-  const ordered = applyOrder(list)
+function getNewWords(limit, listKey) {
+  // 默认用设置里选定的词书；也允许显式指定（首页统计、练习页等）
+  const key = listKey || state.settings.learnList || DEFAULT_LIST
+  const pool = getWordsByList(key)
+  const ordered = applyOrder(pool.filter((w) => !state.progress[w.word]))
   return limit ? ordered.slice(0, limit) : ordered
+}
+
+/** 某本词书里"还没学过"的词数 */
+function countNewWords(listKey) {
+  const key = listKey || state.settings.learnList || DEFAULT_LIST
+  return getWordsByList(key).filter((w) => !state.progress[w.word]).length
 }
 
 /** 取所有已到期的复习单词（同样遵循出词顺序设置） */
@@ -323,6 +332,7 @@ const stats = computed(() => {
   let rememberCount = 0 // 记得次数
   let forgetCount = 0 // 不记得次数
   let todayReviews = 0 // 今日复习次数（自然日 00:00 起算）
+  const newCountByList = { regular: 0, high: 0 }
 
   const t = now()
   // 今天的 0 点，用于统计"今日活跃度"
@@ -334,6 +344,9 @@ const stats = computed(() => {
     const p = state.progress[w.word]
     if (!p) {
       newCount++
+      // 未学词按所属词书分别累计
+      if (w.lists.includes('regular')) newCountByList.regular++
+      if (w.lists.includes('high')) newCountByList.high++
       continue
     }
     if (p.state === 'mastered') {
@@ -361,7 +374,10 @@ const stats = computed(() => {
     rememberCount,
     forgetCount,
     todayReviews,
-    notebookCount: Object.keys(state.notebook).length // 生词本词数
+    notebookCount: Object.keys(state.notebook).length, // 生词本词数
+    // 各词书的总词数与未学数（供「学新词」页选择词书时展示）
+    listSizes: { ...LIST_SIZES },
+    newCountByList
   }
 })
 
@@ -397,6 +413,11 @@ function setSpeechEnabled(v) {
 /** 朗读语速，限制在 0.5 - 2 倍 */
 function setSpeechRate(r) {
   state.settings.speechRate = Math.max(0.5, Math.min(2, Number(r) || 1))
+}
+
+/** 切换学新词使用的词书：'regular' | 'high' */
+function setLearnList(listKey) {
+  state.settings.learnList = listKey === 'high' ? 'high' : 'regular'
 }
 
 /** 出词顺序：'shuffle' 乱序 | 'alpha' 正序 */
@@ -463,6 +484,7 @@ export function useStore() {
     reviewRemember,
     reviewForget,
     getNewWords,
+    countNewWords,
     getDueReviews,
     getLast7Days,
     // 练习模式（不写 SRS）
@@ -480,6 +502,7 @@ export function useStore() {
     setSpeechEnabled,
     setSpeechRate,
     setOrder,
+    setLearnList,
     exportData,
     importData,
     resetProgress

@@ -3,7 +3,27 @@
     <!-- ==================== 开始前：选择本次学习数量 ==================== -->
     <section v-if="!started" class="card setup">
       <h2 class="setup__title">本次学多少个新词？</h2>
-      <p class="setup__desc">词库中还有 {{ available }} 个新词未学习</p>
+      <p class="setup__desc">
+        「{{ currentListName }}」还剩 {{ available }} 个新词未学习
+      </p>
+
+      <!-- 词书选择：常规词汇 / 高频词汇 -->
+      <h3 class="section-title">选择词书</h3>
+      <div class="libs">
+        <button
+          v-for="l in WORD_LISTS"
+          :key="l.key"
+          class="lib"
+          :class="{ 'lib--active': state.settings.learnList === l.key }"
+          @click="chooseList(l.key)"
+        >
+          <span class="lib__name">{{ l.name }}</span>
+          <span class="lib__meta">{{ l.desc }}</span>
+          <span class="lib__count">
+            未学 {{ stats.newCountByList[l.key] }} / 共 {{ stats.listSizes[l.key] }}
+          </span>
+        </button>
+      </div>
 
       <!-- 数量步进器 -->
       <div class="stepper">
@@ -33,7 +53,7 @@
         </button>
       </div>
 
-      <button class="btn btn-primary btn-block" :disabled="available === 0" @click="start">
+      <button class="btn btn-primary btn-block start-btn" :disabled="available === 0" @click="start">
         {{ available === 0 ? '没有新词可学了' : '开始学习' }}
       </button>
     </section>
@@ -94,15 +114,29 @@ import { useRouter } from 'vue-router'
 import WordCard from '../components/WordCard.vue'
 import { useStore } from '../composables/useStore'
 import { useUI } from '../composables/useUI'
+import { WORD_LISTS } from '../data'
 
 const router = useRouter()
-const { stats, state, getNewWords, learnWord, setBatchSize } = useStore()
+const { stats, state, getNewWords, learnWord, setBatchSize, setLearnList } = useStore()
 const { toast } = useUI()
 
 const presets = [10, 20, 30, 50] // 常用数量
 
-/** 词库中剩余新词数：直接用统计结果，避免为取长度而过滤+洗牌整个词库 */
-const available = computed(() => stats.value.newCount)
+/** 当前选中的词书 */
+const currentListName = computed(() => {
+  const hit = WORD_LISTS.find((l) => l.key === state.settings.learnList)
+  return hit ? hit.name : '常规词汇'
+})
+
+/** 当前词书里剩余的新词数：直接用统计结果，避免为取长度而过滤+洗牌整个词库 */
+const available = computed(() => stats.value.newCountByList[state.settings.learnList] || 0)
+
+/** 切换词书：切换后剩余数量/数量上限都会跟着变 */
+function chooseList(key) {
+  if (state.settings.learnList === key) return
+  setLearnList(key)
+  batch.value = Math.min(state.settings.batchSize, maxBatch.value)
+}
 /** 单次学习数量上限（与设置页保持一致） */
 const MAX_BATCH = 100
 /** 实际可选上限 = min(单次上限, 剩余新词数) */
@@ -226,6 +260,47 @@ onMounted(() => {
   margin: 0 0 18px;
   font-size: 13px;
   color: var(--muted);
+}
+
+/* ---------- 词书选择 ---------- */
+.libs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.lib {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 13px 12px;
+  border-radius: 13px;
+  background: var(--card-soft);
+  border: 1.5px solid var(--border);
+  text-align: left;
+  transition: all 0.16s ease;
+}
+.lib--active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.lib__name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+.lib--active .lib__name {
+  color: var(--primary);
+}
+.lib__meta,
+.lib__count {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.start-btn {
+  margin-top: 20px;
 }
 
 .stepper {
