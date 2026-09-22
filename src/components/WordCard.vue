@@ -37,6 +37,7 @@
           <span>{{ word.example }}</span>
           <span v-if="word.exampleCn" class="wc-example__cn">{{ word.exampleCn }}</span>
         </div>
+        <WordExtras :word="word" />
       </div>
     </div>
 
@@ -63,6 +64,8 @@
           <span>{{ word.example }}</span>
           <span v-if="word.exampleCn" class="wc-example__cn">{{ word.exampleCn }}</span>
         </div>
+        <!-- 复习卡片背面同样展示搭配与真题例句 -->
+        <WordExtras :word="word" />
         <button class="speak-btn" title="朗读单词" aria-label="朗读单词" @click.stop="speakWord">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -85,6 +88,7 @@
  */
 import { speak } from '../composables/useSpeech'
 import { useStore } from '../composables/useStore'
+import WordExtras from './WordExtras.vue'
 
 const props = defineProps({
   word: { type: Object, required: true },

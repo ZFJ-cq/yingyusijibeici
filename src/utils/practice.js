@@ -1,16 +1,27 @@
 /**
  * 练习模式引擎（纯函数，不依赖 Vue，便于单独验证）
  * ----------------------------------------------------------------------------
- * 五种题型：
+ * 九种题型：
  *   en2cn     英译中：展示英文单词 → 填写中文释义
  *   cn2en     中译英：展示中文释义 → 填写英文单词（大小写忽略 + 拼写容错）
  *   cloze     短句填空：挖空例句中的目标单词 → 补全句子（给原形提示）
  *   dictation 默写填空：给中文释义 + 挖空例句（**不给提示词**）→ 默写单词（可选听发音）
  *   mask      蒙版遮挡：题面 + 释义蒙版，先自己回忆，揭开蒙版核对后自评对错（不打字）
+ *   collocation       词组填空：给中文释义 + 挖空的词组 → 填出搭配里的那个词
+ *   collocationChoice 词组四选一：给中文释义 → 四个搭配里选正确的
+ *   banked    选词填空（真题 15 选 10）：真题原文 10 空，从 15 个词里选（judgeBanked 判分）
+ *   translate 汉译英（真题）：真题翻译原句 → 写英文，按关键词覆盖率判分
+ *
+ * ⚠️ 题源分两类，别混淆：
+ *     - banked / translate 用的是 cet4Exam.js 里的**真实四级真题**；
+ *     - collocation / collocationChoice 用的是 highFreqPhrases.js 的常用搭配整理。
  *
  * ⚠️ 本模块只负责"出题 / 判分"，不读写任何 SRS（遗忘曲线）数据。
  *    练习答错不会影响复习时间戳，这是练习模式的硬约束。
  */
+
+import { HIGH_FREQ_PHRASES } from '../data/highFreqPhrases.js'
+import { BANKED_PASSAGES, TRANSLATION_ITEMS } from '../data/cet4Exam.js'
 
 /** 词性前缀，用于把释义里的 "v." / "adj." 等去掉 */
 const POS_PREFIX = /^\s*(n|v|adj|adv|prep|pron|conj|num|art|int|vt|vi|aux|abbr)\.\s*/i
@@ -169,6 +180,163 @@ export function canDictation(wordObj) {
   return buildCloze(wordObj) !== null
 }
 
+/* ==================== 词组类题型（题源：highFreqPhrases.js） ==================== */
+
+/**
+ * 取出某个词"可以挖空"的词组：即词组里包含该单词本身的那些搭配。
+ * 例：account + "take into account" → 可挖空成 "take into ______"
+ * 词组里不含该词的（如 according → "according to plan" 含 according，可用）
+ * 直接过滤掉，避免出现"答案不在题干里"的怪题。
+ */
+function blankablePhrases(word) {
+  const w = String(word || '').toLowerCase()
+  const list = HIGH_FREQ_PHRASES[w] || []
+  const re = new RegExp(`\\b${escapeRegExp(w)}\\b`, 'i')
+  return list.filter(([phrase]) => re.test(phrase))
+}
+
+/** 该词能否出「词组搭配填空」题 */
+export function canCollocation(wordObj) {
+  return blankablePhrases(wordObj.word).length > 0
+}
+
+/**
+ * 词组搭配填空：给中文释义 + 挖空的词组，填出被挖掉的单词
+ * 例：提示"考虑到"，题干 "take into ______" → 答案 account
+ */
+export function buildCollocationQuestion(w) {
+  const cands = blankablePhrases(w.word)
+  if (!cands.length) return null
+  const [phrase, cn] = cands[Math.floor(Math.random() * cands.length)]
+  const re = new RegExp(`\\b${escapeRegExp(w.word)}\\b`, 'i')
+  return {
+    word: w.word,
+    type: 'collocation',
+    prompt: cn, // 中文释义
+    phrase: phrase.replace(re, '______'), // 挖空后的词组
+    answerText: w.word,
+    meaning: w.meaning,
+    fullPhrase: phrase, // 完整词组（答题后展示）
+    phraseCn: cn
+  }
+}
+
+/**
+ * 词组四选一：给中文释义 + 提示词，四个词组选项里选正确的搭配
+ * 干扰项取自**其他单词**的真实词组，保证都是地道搭配、只是用错了地方。
+ */
+export function buildCollocationChoice(w, pool = []) {
+  const cands = blankablePhrases(w.word)
+  if (!cands.length) return null
+  const [phrase, cn] = cands[Math.floor(Math.random() * cands.length)]
+  const self = String(w.word).toLowerCase()
+
+  const distractors = []
+  for (const o of shuffle(pool)) {
+    if (String(o.word).toLowerCase() === self) continue
+    const list = HIGH_FREQ_PHRASES[String(o.word).toLowerCase()]
+    if (!list || !list.length) continue
+    const pick = list[Math.floor(Math.random() * list.length)]
+    if (pick && pick[0] !== phrase && !distractors.includes(pick[0])) distractors.push(pick[0])
+    if (distractors.length >= 3) break
+  }
+  if (distractors.length < 3) return null // 凑不够 4 个选项就不出这题
+
+  const options = shuffle([phrase, ...distractors])
+  return {
+    word: w.word,
+    type: 'collocationChoice',
+    prompt: cn, // 中文释义
+    options,
+    answerIndex: options.indexOf(phrase),
+    answerText: phrase,
+    meaning: w.meaning
+  }
+}
+
+/* ==================== 选词填空（真题 15 选 10） ==================== */
+
+/**
+ * 组装一篇真题选词填空
+ * segments 是把原文按空格切开后的片段数组（长度 = 空数 + 1），
+ * 渲染时按顺序「片段0 + 空0 + 片段1 + 空1 + …」拼回去即可。
+ */
+export function buildBankedQuestion(passage) {
+  return {
+    type: 'banked',
+    word: '选词填空',
+    passageId: passage.id,
+    title: passage.title,
+    source: passage.source,
+    segments: passage.text.split(/§\d§/),
+    wordBank: passage.wordBank,
+    answers: passage.answers,
+    totalBlanks: passage.answers.length
+  }
+}
+
+/** 随机取 n 篇真题选词填空（不重复） */
+export function buildBankedQuestions(count) {
+  return shuffle(BANKED_PASSAGES)
+    .slice(0, Math.max(0, count))
+    .map(buildBankedQuestion)
+}
+
+/**
+ * 选词填空判分
+ * @param {object} question buildBankedQuestion 的产物
+ * @param {string[]} selections 每个空选的词库字母（未填为 ''）
+ */
+export function judgeBanked(question, selections = []) {
+  const results = question.answers.map((a, i) => selections[i] === a)
+  return {
+    results,
+    correctCount: results.filter(Boolean).length,
+    total: question.answers.length
+  }
+}
+
+/* ==================== 汉译英（真题翻译，按句拆分） ==================== */
+
+/** 随机取 n 道真题翻译题 */
+export function buildTranslationQuestions(count) {
+  return shuffle(TRANSLATION_ITEMS)
+    .slice(0, Math.max(0, count))
+    .map((t) => ({
+      type: 'translate',
+      word: '汉译英',
+      id: t.id,
+      prompt: t.cn, // 中文原句
+      reference: t.en, // 参考译文
+      keywords: t.keywords,
+      source: t.src,
+      answerText: t.en
+    }))
+}
+
+/**
+ * 汉译英判分：按"关键词覆盖率"判定
+ * ⚠️ 翻译没有唯一正确答案，所以这里只做**关键词覆盖**的宽松判定：
+ *    命中 ≥60% 关键词即算通过，并始终展示参考译文与漏掉的关键词，
+ *    让用户自己对照，而不是假装机器能精确判翻译。
+ */
+export function judgeTranslation(question, input) {
+  const ans = normalizeText(input)
+  const missed = []
+  let hit = 0
+  for (const k of question.keywords || []) {
+    if (ans.includes(normalizeText(k))) hit++
+    else missed.push(k)
+  }
+  const total = (question.keywords || []).length
+  return {
+    correct: total > 0 && hit / total >= 0.6,
+    hit,
+    total,
+    missed
+  }
+}
+
 /** Fisher-Yates 洗牌（返回新数组） */
 export function shuffle(list) {
   const arr = list.slice()
@@ -195,6 +363,8 @@ function makeQuestion(w, type, maskSide = 'cn') {
   if (t === 'mixed') {
     const options = ['en2cn', 'cn2en', 'dictation']
     if (canCloze(w)) options.push('cloze')
+    // 有词组的词，混合模式里也可能出到词组搭配填空
+    if (canCollocation(w)) options.push('collocation')
     t = options[Math.floor(Math.random() * options.length)]
   }
 
@@ -227,6 +397,12 @@ function makeQuestion(w, type, maskSide = 'cn') {
       meaning: w.meaning,
       phonetic: w.phonetic
     }
+  }
+
+  if (t === 'collocation') {
+    const q = buildCollocationQuestion(w)
+    if (!q) return makeQuestion(w, 'en2cn') // 兜底
+    return q
   }
 
   if (t === 'cn2en') {
@@ -269,6 +445,20 @@ function makeQuestion(w, type, maskSide = 'cn') {
  * @returns {object[]} 题目数组
  */
 export function buildQuestions({ words, count, type = 'mixed', maskSide = 'cn' }) {
+  // 词组类题型：只有"词组里包含该词"的单词才能出题，先筛一遍
+  if (type === 'collocation') {
+    return shuffle(words.filter(canCollocation))
+      .slice(0, Math.max(0, count))
+      .map((w) => buildCollocationQuestion(w))
+      .filter(Boolean)
+  }
+  if (type === 'collocationChoice') {
+    return shuffle(words.filter(canCollocation))
+      .slice(0, Math.max(0, count))
+      .map((w) => buildCollocationChoice(w, words))
+      .filter(Boolean)
+  }
+
   // 短句填空 / 默写填空都需要例句，先筛掉出不了题的词
   const needExample = type === 'cloze' || type === 'dictation'
   const candidates = needExample ? words.filter(canCloze) : words
@@ -287,6 +477,17 @@ export function judge(question, input) {
   if (question.type === 'mask') {
     throw new Error('[practice] mask 题型没有客观答案，请使用自评流程，不要调用 judge()')
   }
+  // 这两种题型是"多空 / 开放式"的，判分入口不同，走错就立刻暴露
+  if (question.type === 'banked') {
+    throw new Error('[practice] banked（选词填空）请用 judgeBanked()，不要调用 judge()')
+  }
+  if (question.type === 'translate') {
+    throw new Error('[practice] translate（汉译英）请用 judgeTranslation()，不要调用 judge()')
+  }
+  if (question.type === 'collocationChoice') {
+    // 单选题：比对选中的选项文本
+    return { correct: normalizeText(input) === normalizeText(question.answerText) }
+  }
   if (question.type === 'en2cn') {
     return judgeMeaning(input, question.meaning)
   }
@@ -304,5 +505,9 @@ export const TYPE_LABEL = {
   cn2en: '中译英',
   cloze: '短句填空',
   dictation: '默写填空',
-  mask: '蒙版遮挡'
+  mask: '蒙版遮挡',
+  collocation: '词组填空',
+  collocationChoice: '词组四选一',
+  banked: '选词填空(真题)',
+  translate: '汉译英(真题)'
 }

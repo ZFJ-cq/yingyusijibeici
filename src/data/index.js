@@ -1,5 +1,7 @@
 import { WORDS as REGULAR_WORDS } from './words.js'
 import { HIGH_FREQ_ONLY, HIGH_FREQ_SHARED } from './highFreqWords.js'
+import { HIGH_FREQ_PHRASES } from './highFreqPhrases.js'
+import { EXAM_SENTENCES } from './cet4Exam.js'
 
 /**
  * 词库合并层
@@ -64,8 +66,28 @@ function mergeLists() {
   return [...byWord.values()]
 }
 
-/** 全部词条（两本词书的并集） */
-export const WORDS = mergeLists()
+/** 真题例句按单词归组（一个词可能有多条真题原句） */
+const EXAM_BY_WORD = EXAM_SENTENCES.reduce((acc, s) => {
+  const key = String(s.w).toLowerCase()
+  if (!acc[key]) acc[key] = []
+  acc[key].push(s)
+  return acc
+}, {})
+
+/** 合并后的词条上，再挂两样"加料"（只给高频词，常规词不受影响） */
+function attachExtras(words) {
+  for (const w of words) {
+    const key = String(w.word).toLowerCase()
+    const ps = HIGH_FREQ_PHRASES[key]
+    if (ps && ps.length) w.phrases = ps // [[词组, 中文], ...]
+    const ex = EXAM_BY_WORD[key]
+    if (ex && ex.length) w.exam = ex // [{ en, cn, src }, ...]
+  }
+  return words
+}
+
+/** 全部词条（两本词书的并集，并挂上词组与真题例句） */
+export const WORDS = attachExtras(mergeLists())
 
 /** 取某本词书的全部词条 */
 export function getWordsByList(list) {

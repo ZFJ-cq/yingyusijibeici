@@ -83,12 +83,24 @@
           </div>
         </div>
         <p v-else-if="type === 'mixed'" class="type-hint">
-          混合会随机出「英译中 / 中译英 / 短句填空 / 默写填空」，这几种都需要打字作答；
+          混合会随机出「英译中 / 中译英 / 短句填空 / 默写填空 / 词组填空」，这几种都需要打字作答；
           想练「蒙版遮挡」请单独选择该题型。
+        </p>
+        <p v-else-if="type === 'banked'" class="type-hint">
+          ⭐ <b>真题题型</b>：完整四级真题原文挖 10 个空，从 15 个候选词里选，<b>不依赖词池</b>。
+          题库现有 {{ EXAM_MAX.banked }} 篇真题。
+        </p>
+        <p v-else-if="type === 'translate'" class="type-hint">
+          ⭐ <b>真题题型</b>：历年四级段落翻译真题拆成的单句，题库现有 {{ EXAM_MAX.translate }} 句。
+          翻译没有唯一答案，提交后按<b>关键词覆盖率</b>判定并给出参考译文，请自行对照。
+        </p>
+        <p v-else-if="type === 'collocation' || type === 'collocationChoice'" class="type-hint">
+          词组题考察固定搭配（如 take into ______）。题源是高频词的常用搭配整理，
+          选「高频词」相关词池覆盖最全。
         </p>
 
         <button class="btn btn-primary btn-block start-btn" :disabled="!canStart" @click="start">
-          {{ canStart ? `开始练习（${count} 题）` : '该词池暂无可练单词' }}
+          {{ startLabel }}
         </button>
       </section>
 
@@ -175,6 +187,61 @@
         </div>
       </div>
 
+      <!-- 词组填空：给中文释义 + 挖空的词组 -->
+      <div v-else-if="current.type === 'collocation'" class="quiz__prompt">
+        <p class="quiz__meaning">{{ current.prompt }}</p>
+        <p class="quiz__phrase">{{ current.phrase }}</p>
+        <p class="quiz__ask">请填出这个搭配里缺少的单词</p>
+      </div>
+
+      <!-- 词组四选一：给中文释义，四个搭配里挑正确的 -->
+      <div v-else-if="current.type === 'collocationChoice'" class="quiz__prompt">
+        <p class="quiz__meaning">{{ current.prompt }}</p>
+        <p class="quiz__ask">下面哪个是「{{ current.word }}」的正确搭配？</p>
+      </div>
+
+      <!-- 汉译英（真题）：给中文原句 -->
+      <div v-else-if="current.type === 'translate'" class="quiz__prompt">
+        <span class="exam-src">{{ current.source }}</span>
+        <p class="quiz__meaning quiz__meaning--cn">{{ current.prompt }}</p>
+        <p class="quiz__ask">请把这句话译成英文</p>
+      </div>
+
+      <!-- 选词填空（真题 15 选 10）：真题原文 + 每空一个下拉选择 -->
+      <div v-else-if="current.type === 'banked'" class="quiz__prompt">
+        <span class="exam-src">{{ current.source }}</span>
+        <h4 class="passage__title">{{ current.title }}</h4>
+        <p class="passage">
+          <template v-for="(seg, i) in current.segments" :key="i">
+            <span>{{ seg }}</span>
+            <span v-if="i < current.totalBlanks" class="blank-slot">
+              <select
+                v-model="bankedSelections[i]"
+                class="blank-select"
+                :class="blankClass(i)"
+                :disabled="answered"
+                :aria-label="`第 ${i + 1} 空`"
+              >
+                <option value="">—</option>
+                <option v-for="b in current.wordBank" :key="b.key" :value="b.key">
+                  {{ b.key }}) {{ b.word }}
+                </option>
+              </select>
+            </span>
+          </template>
+        </p>
+
+        <div class="bank">
+          <span class="bank__label">词库（15 选 10，每个词只能用一次）</span>
+          <div class="bank__grid">
+            <span v-for="b in current.wordBank" :key="b.key" class="bank__item">
+              <b>{{ b.key }})</b> {{ b.word }}
+              <i>{{ b.pos }} {{ b.cn }}</i>
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- 蒙版遮挡：题面正常显示，答案被蒙版盖住，点开后自评对错（不打字） -->
       <div v-else class="quiz__prompt">
         <!-- 遮中文：题面是英文单词 -->
@@ -245,9 +312,42 @@
           </div>
         </template>
 
-        <!-- 其余四种题型：打字作答 + 自动判分 -->
+        <!-- 词组四选一：点选项作答，即时判分 -->
+        <template v-else-if="current.type === 'collocationChoice'">
+          <div class="options">
+            <button
+              v-for="(opt, i) in current.options"
+              :key="i"
+              class="option"
+              :class="optionClass(i)"
+              :disabled="answered"
+              @click="pickOption(i)"
+            >
+              {{ opt }}
+            </button>
+          </div>
+
+          <div v-if="answered" class="feedback" :class="feedbackClass">
+            <span class="feedback__title">{{ feedbackTitle }}</span>
+            <span class="feedback__answer">正确答案：<b>{{ current.answerText }}</b></span>
+          </div>
+
+          <button class="btn btn-primary btn-block" @click="onPrimary">{{ primaryLabel }}</button>
+        </template>
+
+        <!-- 其余题型：打字作答 + 自动判分 -->
         <template v-else>
+          <!-- 汉译英用多行输入，其余用单行 -->
+          <textarea
+            v-if="current.type === 'translate'"
+            v-model="userInput"
+            class="answer__input answer__input--area"
+            rows="3"
+            :placeholder="placeholder"
+            :disabled="answered"
+          ></textarea>
           <input
+            v-else
             ref="inputEl"
             v-model="userInput"
             class="answer__input"
@@ -261,8 +361,36 @@
             @keydown.enter.prevent="onEnter"
           />
 
-          <!-- 判分反馈 -->
-          <div v-if="answered" class="feedback" :class="feedbackClass">
+          <!-- 汉译英：关键词命中 + 参考译文（翻译没有唯一答案，必须给参考） -->
+          <div v-if="answered && current.type === 'translate'" class="feedback" :class="feedbackClass">
+            <span class="feedback__title">
+              {{
+                currentResult.trans.hit === currentResult.trans.total
+                  ? '✅ 关键词全部命中'
+                  : `⚠️ 关键词命中 ${currentResult.trans.hit}/${currentResult.trans.total}`
+              }}
+            </span>
+            <span class="feedback__answer">参考译文：<b>{{ current.answerText }}</b></span>
+            <span v-if="currentResult.trans.missed.length" class="feedback__extra">
+              未覆盖关键词：{{ currentResult.trans.missed.join('、') }}
+            </span>
+            <span class="feedback__extra">
+              翻译没有唯一答案，这里按关键词覆盖率判定，请对照参考译文自查。
+            </span>
+          </div>
+
+          <!-- 选词填空：汇报对了几空（每个空已单独计入统计） -->
+          <div v-else-if="answered && current.type === 'banked'" class="feedback" :class="feedbackClass">
+            <span class="feedback__title">
+              答对 {{ currentResult.banked.correctCount }} / {{ currentResult.banked.total }} 空
+            </span>
+            <span class="feedback__extra">
+              每空已单独计入统计，答错的词可在结果页一键加入生词本。
+            </span>
+          </div>
+
+          <!-- 判分反馈（普通题型） -->
+          <div v-else-if="answered" class="feedback" :class="feedbackClass">
             <span class="feedback__title">{{ feedbackTitle }}</span>
             <span class="feedback__answer">
               正确答案：<b>{{ current.answerText }}</b>
@@ -328,7 +456,9 @@
             <span v-if="r.near" class="wrong__near">（拼写很接近）</span>
           </p>
           <p class="wrong__a">正确答案：<b>{{ r.answerText }}</b></p>
+          <!-- 汉译英没有"单词"可收藏，不显示加入生词本 -->
           <button
+            v-if="canAddNotebook(r)"
             class="wrong__add"
             :disabled="isInNotebook(r.word)"
             @click="addOne(r.word)"
@@ -349,8 +479,10 @@
 /**
  * 练习模式
  * ----------------------------------------------------------------------------
- * 五种题型（可混合前四种）：
+ * 九种题型（前 5 种可混合）：
  *   英译中 / 中译英 / 短句填空（给原形提示）/ 默写填空（不给提示）/ 蒙版遮挡（自评）
+ *   词组填空 / 词组四选一 —— 题源：高频词常用搭配
+ *   选词填空·真题（15 选 10）/ 汉译英·真题 —— 题源：真实四级真题
  * 词池：全部 / 待复习 / 已掌握 / 生词本；题量：5 / 10 / 20 / 自定义。
  * 结果页汇总正确率与错题，错题可一键加入生词本。
  *
@@ -362,7 +494,16 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useStore } from '../composables/useStore'
 import { useUI } from '../composables/useUI'
 import { speak } from '../composables/useSpeech'
-import { buildQuestions, judge, TYPE_LABEL } from '../utils/practice'
+import {
+  buildQuestions,
+  judge,
+  TYPE_LABEL,
+  buildBankedQuestions,
+  buildTranslationQuestions,
+  judgeBanked,
+  judgeTranslation
+} from '../utils/practice'
+import { BANKED_PASSAGES, TRANSLATION_ITEMS } from '../data/cet4Exam'
 
 const {
   state,
@@ -383,14 +524,22 @@ const pools = computed(() => [
   { key: 'mastered', name: '已掌握', count: stats.value.masteredCount },
   { key: 'notebook', name: '生词本', count: stats.value.notebookCount }
 ])
+/** 题型：前 6 种基于词库词条；后 2 种（banked / translate）用的是**真实四级真题** */
 const typeOptions = [
   { key: 'mixed', name: '混合（推荐）' },
   { key: 'en2cn', name: '英译中' },
   { key: 'cn2en', name: '中译英' },
   { key: 'cloze', name: '短句填空' },
   { key: 'dictation', name: '默写填空' },
-  { key: 'mask', name: '蒙版遮挡' }
+  { key: 'mask', name: '蒙版遮挡' },
+  { key: 'collocation', name: '词组填空' },
+  { key: 'collocationChoice', name: '词组四选一' },
+  { key: 'banked', name: '选词填空·真题' },
+  { key: 'translate', name: '汉译英·真题' }
 ]
+
+/** 真题题型的题库上限（用于钳制题量，避免显示"100 题"实际只出几题） */
+const EXAM_MAX = { banked: BANKED_PASSAGES.length, translate: TRANSLATION_ITEMS.length }
 
 /** 蒙版遮挡：遮挡哪一面（看词猜义 / 看义想词） */
 const maskSides = [
@@ -416,8 +565,24 @@ const poolSize = computed(() => {
   return found ? found.count : 0
 })
 
-/** 词池非空才允许开始；题型是否可出题由 start() 里的 buildQuestions 兜底判断 */
-const canStart = computed(() => poolSize.value > 0)
+/** 真题题型不依赖词池，所以始终可以开始 */
+const canStart = computed(() => {
+  if (type.value === 'banked' || type.value === 'translate') return true
+  return poolSize.value > 0
+})
+
+/** 实际题量：真题题型按题库现有篇数/句数钳制，避免显示 100 题却只出几题 */
+const effectiveCount = computed(() => {
+  const max = EXAM_MAX[type.value]
+  return max ? Math.min(count.value, max) : count.value
+})
+
+/** 开始按钮文案 */
+const startLabel = computed(() => {
+  if (!canStart.value) return '该词池暂无可练单词'
+  if (type.value === 'banked') return `开始练习（${effectiveCount.value} 篇 × 10 空）`
+  return `开始练习（${effectiveCount.value} 题）`
+})
 
 /* ---------------- 生词本 ---------------- */
 const notebookOpen = ref(false)
@@ -434,6 +599,10 @@ const currentResult = ref(null)
 const records = ref([]) // 每题作答记录
 const inputEl = ref(null)
 const allWrongAdded = ref(false)
+/** 选词填空（真题）：每个空所选的词库字母，长度 = 空数 */
+const bankedSelections = ref([])
+/** 词组四选一：已选中的选项下标 */
+const choicePicked = ref(null)
 
 const current = computed(() => questions.value[index.value] || null)
 const correctCount = computed(() => records.value.filter((r) => r.correct).length)
@@ -451,7 +620,10 @@ const progressPercent = computed(() => {
 
 const placeholder = computed(() => {
   if (!current.value) return ''
-  return current.value.type === 'en2cn' ? '输入中文释义' : '输入英文单词'
+  if (current.value.type === 'en2cn') return '输入中文释义'
+  if (current.value.type === 'translate') return '写出你的英文翻译…'
+  if (current.value.type === 'collocation') return '输入搭配中缺少的单词'
+  return '输入英文单词'
 })
 
 /* ---------------- 交互文案 ---------------- */
@@ -486,12 +658,36 @@ function typeLabel(t) {
   return TYPE_LABEL[t] || t
 }
 
+/** 词组四选一：未答时高亮"已选"，答后标出正确项与选错项 */
+function optionClass(i) {
+  if (!answered.value) return choicePicked.value === i ? 'option--picked' : ''
+  const q = current.value
+  if (!q) return ''
+  if (i === q.answerIndex) return 'option--right'
+  if (i === choicePicked.value) return 'option--wrong'
+  return ''
+}
+
+/** 选词填空：判分后逐空标出对错 */
+function blankClass(i) {
+  const r = currentResult.value && currentResult.value.banked
+  if (!answered.value || !r) return ''
+  return r.results[i] ? 'blank-select--ok' : 'blank-select--bad'
+}
+
 /** 错题列表里展示的题目文本 */
 function questionText(r) {
   if (r.type === 'mask') return r.side === 'en' ? r.meaning : r.word
   if (r.type === 'cloze') return r.sentence
   if (r.type === 'dictation') return `${r.prompt} ｜ ${r.sentence}`
-  return r.prompt // en2cn / cn2en
+  if (r.type === 'collocation') return `${r.prompt} ｜ ${r.phrase || ''}`
+  if (r.type === 'banked') return r.prompt
+  return r.prompt // en2cn / cn2en / collocationChoice / translate
+}
+
+/** 汉译英记录里的 word 是"汉译英"四个字，不是真单词，不能进生词本 */
+function canAddNotebook(r) {
+  return !!r.word && r.type !== 'translate'
 }
 
 function speakWord(text) {
@@ -500,14 +696,32 @@ function speakWord(text) {
 
 /* ---------------- 流程 ---------------- */
 function start() {
-  const words = getPoolWords(pool.value)
-  if (!words.length) {
-    toast('该词池暂无单词')
-    return
+  let list = []
+  if (type.value === 'banked') {
+    // 真题选词填空：题源是真题原文，与词池无关
+    list = buildBankedQuestions(effectiveCount.value)
+  } else if (type.value === 'translate') {
+    // 真题汉译英：题源是真题翻译原句，与词池无关
+    list = buildTranslationQuestions(effectiveCount.value)
+  } else {
+    const words = getPoolWords(pool.value)
+    if (!words.length) {
+      toast('该词池暂无单词')
+      return
+    }
+    list = buildQuestions({
+      words,
+      count: effectiveCount.value,
+      type: type.value,
+      maskSide: maskSide.value
+    })
   }
-  const list = buildQuestions({ words, count: count.value, type: type.value, maskSide: maskSide.value })
   if (!list.length) {
-    toast('该词池里没有可出此题型（需要例句）的单词，换个题型或词池试试')
+    toast(
+      type.value === 'collocation' || type.value === 'collocationChoice'
+        ? '该词池里没有可出词组题的单词（需要该词有搭配记录），换「高频词」词池试试'
+        : '该词池里没有可出此题型（需要例句）的单词，换个题型或词池试试'
+    )
     return
   }
   questions.value = list
@@ -523,12 +737,22 @@ function resetAnswer() {
   answered.value = false
   revealed.value = false
   currentResult.value = null
+  choicePicked.value = null
+  // 选词填空：给每个空准备一个空的选项位
+  const q = current.value
+  bankedSelections.value = q && q.type === 'banked' ? new Array(q.totalBlanks).fill('') : []
 }
 
-/** 提交答案（判分只发生在内存里，不写任何 SRS 数据） */
+/**
+ * 提交答案（判分只发生在内存里，不写任何 SRS 数据）
+ * 不同题型的作答控件不同，这里按题型分流到各自的判分逻辑
+ */
 function submit() {
   const q = current.value
   if (!q) return
+  if (q.type === 'banked') return submitBanked()
+  if (q.type === 'translate') return submitTranslation()
+  if (q.type === 'collocationChoice') return submitChoice()
   const input = userInput.value.trim()
   if (!input) {
     toast('请先填写答案')
@@ -543,10 +767,92 @@ function submit() {
     prompt: q.prompt,
     sentence: q.sentence,
     hint: q.hint,
+    phrase: q.phrase, // 词组填空：挖空后的词组（错题列表要展示）
     answerText: q.answerText,
     input,
     correct: result.correct,
     near: !!result.near
+  })
+}
+
+/* ---------------- 词组四选一 ---------------- */
+
+/** 点击选项即作答，给即时反馈 */
+function pickOption(i) {
+  if (answered.value) return
+  choicePicked.value = i
+  submit()
+}
+
+function submitChoice() {
+  const q = current.value
+  if (!q) return
+  if (choicePicked.value === null) {
+    toast('请选择一个搭配')
+    return
+  }
+  const picked = q.options[choicePicked.value]
+  const result = judge(q, picked)
+  currentResult.value = result
+  answered.value = true
+  records.value.push({
+    type: q.type,
+    word: q.word,
+    prompt: q.prompt,
+    answerText: q.answerText,
+    input: picked,
+    correct: result.correct
+  })
+}
+
+/* ---------------- 选词填空（真题 15 选 10） ---------------- */
+
+function submitBanked() {
+  const q = current.value
+  if (!q) return
+  const sel = bankedSelections.value
+  if (sel.some((s) => !s)) {
+    toast('还有空格没有填完')
+    return
+  }
+  const r = judgeBanked(q, sel)
+  answered.value = true
+  currentResult.value = { correct: r.correctCount >= Math.ceil(r.total * 0.6), banked: r }
+  // 每个空单独记一条：正确率按"空"统计，错题也能逐个加入生词本
+  for (let i = 0; i < q.answers.length; i++) {
+    const rightItem = q.wordBank.find((b) => b.key === q.answers[i])
+    const pickedItem = q.wordBank.find((b) => b.key === sel[i])
+    records.value.push({
+      type: 'banked',
+      word: rightItem ? rightItem.word : q.answers[i],
+      prompt: `《${q.title}》第 ${i + 1} 空`,
+      answerText: rightItem ? rightItem.word : q.answers[i],
+      input: pickedItem ? pickedItem.word : '（未填）',
+      correct: r.results[i]
+    })
+  }
+}
+
+/* ---------------- 汉译英（真题） ---------------- */
+
+function submitTranslation() {
+  const q = current.value
+  if (!q) return
+  const input = userInput.value.trim()
+  if (!input) {
+    toast('请先写出你的翻译')
+    return
+  }
+  const r = judgeTranslation(q, input)
+  answered.value = true
+  currentResult.value = { correct: r.correct, trans: r }
+  records.value.push({
+    type: 'translate',
+    word: '汉译英',
+    prompt: q.prompt,
+    answerText: q.reference,
+    input,
+    correct: r.correct
   })
 }
 
@@ -613,7 +919,12 @@ function onCustomCount(e) {
 
 /* ---------------- 生词本 ---------------- */
 function addWrongToNotebook() {
-  const words = wrongList.value.map((r) => r.word)
+  // 汉译英的 word 不是真单词，跳过
+  const words = wrongList.value.filter((r) => canAddNotebook(r)).map((r) => r.word)
+  if (!words.length) {
+    toast('这些错题没有可加入生词本的单词')
+    return
+  }
   const added = addManyToNotebook(words)
   allWrongAdded.value = true
   toast(added ? `已加入生词本 ${added} 个` : '这些错题都已在生词本中')
@@ -1071,6 +1382,154 @@ watch([index, phase], async () => {
 
 .answer .btn {
   margin-top: 14px;
+}
+
+/* ---------- 真题标识（选词填空 / 汉译英） ---------- */
+.exam-src {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ---------- 选词填空（真题 15 选 10） ---------- */
+.passage__title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.passage {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 2.2;
+  color: var(--text);
+}
+.blank-slot {
+  display: inline-block;
+  margin: 0 2px;
+}
+.blank-select {
+  min-width: 96px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1.5px solid var(--primary);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  vertical-align: middle;
+}
+.blank-select:disabled {
+  opacity: 1;
+}
+.blank-select--ok {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+}
+.blank-select--bad {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.bank {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--card-soft);
+  border: 1px solid var(--border);
+}
+.bank__label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.bank__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px 10px;
+}
+.bank__item {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.bank__item b {
+  color: var(--primary);
+}
+.bank__item i {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* ---------- 词组填空 / 汉译英题干 ---------- */
+.quiz__phrase {
+  margin: 10px 0 0;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text);
+  word-break: break-word;
+}
+.quiz__meaning--cn {
+  font-size: 16.5px;
+  font-weight: 600;
+  line-height: 1.8;
+}
+
+/* ---------- 四选一选项 ---------- */
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.option {
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14.5px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.16s ease;
+}
+.option:disabled {
+  cursor: default;
+}
+.option--picked {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.option--right {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+}
+.option--wrong {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ---------- 多行输入（汉译英） ---------- */
+.answer__input--area {
+  resize: vertical;
+  line-height: 1.7;
+  font-size: 15px;
 }
 
 /* ---------- 结果 ---------- */
