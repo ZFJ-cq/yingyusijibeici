@@ -1,45 +1,91 @@
+/* ============================================================================
+   全局样式 · 设计令牌与 App 外壳
+   ----------------------------------------------------------------------------
+   布局思路（移动端 App 风格）：
+     ┌──────────────────────────┐
+     │  .app-header  顶部标题栏   │  sticky，显示当前页面名 + 主题切换
+     ├──────────────────────────┤
+     │  .app-main    内容区       │  居中限宽，底部预留 Tab 栏高度
+     ├──────────────────────────┤
+     │  .tabbar      底部 Tab 栏  │  fixed，5 个 Tab，含 iPhone 安全区
+     └──────────────────────────┘
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   1. 设计令牌（CSS 变量）：浅色主题默认值
+   --------------------------------------------------------------------------- */
 :root {
-  --bg: #f5f7fb;
-  --bg-grad: linear-gradient(160deg, #eef2fb 0%, #f7f9fc 100%);
+  /* 尺寸 */
+  --maxw: 680px; /* 内容最大宽度：桌面端居中后形成"App 视口"的观感 */
+  --header-h: 54px;
+  --tabbar-h: 58px;
+
+  /* 颜色 */
+  --bg: #f4f7fb;
+  --bg-grad: linear-gradient(180deg, #e9f0fb 0%, #f4f7fb 300px);
   --card: #ffffff;
-  --text: #1f2733;
+  --card-soft: #f6f9fd;
+  --text: #171e29;
   --muted: #7a8699;
-  --border: #e6eaf2;
+  --border: #e6ebf3;
+
   --primary: #4f7cff;
-  --primary-soft: #eaf0ff;
-  --success: #2bb673;
-  --success-soft: #e6f7ef;
-  --warning: #ff9f43;
-  --warning-soft: #fff3e6;
-  --danger: #ff5d6c;
-  --danger-soft: #ffe9ec;
-  --shadow: 0 8px 24px rgba(31, 39, 51, 0.08);
-  --shadow-sm: 0 2px 8px rgba(31, 39, 51, 0.06);
-  --radius: 16px;
-  --radius-sm: 10px;
+  --primary-soft: #e9f0ff;
+  --success: #16a34a;
+  --success-soft: #e7f7ee;
+  --warning: #f79009;
+  --warning-soft: #fff3e2;
+  --danger: #ef4444;
+  --danger-soft: #fdecec;
+
+  --shadow: 0 10px 26px rgba(23, 30, 41, 0.08);
+  --shadow-sm: 0 2px 10px rgba(23, 30, 41, 0.06);
+
+  --radius: 18px;
+  --radius-sm: 12px;
+
+  /* 半透明栏底色（配合 backdrop-filter 做毛玻璃） */
+  --header-bg: rgba(255, 255, 255, 0.78);
+  --tabbar-bg: rgba(255, 255, 255, 0.9);
 }
 
+/* 暗黑主题：只覆盖颜色类令牌，尺寸/圆角等继承 :root */
 [data-theme='dark'] {
-  --bg: #0f141c;
-  --bg-grad: linear-gradient(160deg, #11161f 0%, #0c1017 100%);
-  --card: #1a212c;
-  --text: #e7ecf3;
+  --bg: #12161e;
+  --bg-grad: linear-gradient(180deg, #171d27 0%, #12161e 300px);
+  --card: #1b212b;
+  --card-soft: #212936;
+  --text: #e8edf4;
   --muted: #8b97a8;
-  --border: #2a3340;
+  --border: #2a3341;
+
   --primary: #6b93ff;
-  --primary-soft: #1e2a44;
+  --primary-soft: #1d2a45;
   --success: #34d399;
-  --success-soft: #163127;
+  --success-soft: #14332a;
   --warning: #fbbf60;
-  --warning-soft: #3a2c16;
+  --warning-soft: #3a2c15;
   --danger: #ff7180;
   --danger-soft: #3a1c22;
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+  --shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.32);
+
+  --header-bg: rgba(18, 22, 30, 0.78);
+  --tabbar-bg: rgba(18, 22, 30, 0.92);
 }
 
-* {
+/* ---------------------------------------------------------------------------
+   2. 基础重置
+   --------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%; /* 防止 iOS 横屏时自动放大字号 */
 }
 
 html,
@@ -49,18 +95,17 @@ body {
 }
 
 body {
+  min-height: 100dvh; /* dvh 会随移动端地址栏收放而变化，比 vh 更贴合 */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', sans-serif;
   background: var(--bg);
   background-image: var(--bg-grad);
   background-attachment: fixed;
   color: var(--text);
-  min-height: 100vh;
+  overflow-x: hidden; /* 杜绝任何横向滚动 */
+  overscroll-behavior-y: none; /* 去掉 iOS 下拉橡皮筋回弹 */
+  -webkit-tap-highlight-color: transparent; /* 去掉移动端点击高亮块 */
   transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-#app {
-  min-height: 100vh;
 }
 
 a {
@@ -69,127 +114,172 @@ a {
 }
 
 button {
-  font-family: inherit;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
   cursor: pointer;
-  border: none;
-  outline: none;
 }
 
-/* ---------- 布局 ---------- */
-.app {
-  max-width: 960px;
+/* 关闭按钮/链接的长按菜单与文字选择，更像原生 App */
+button,
+a {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---------------------------------------------------------------------------
+   3. App 外壳：顶部标题栏 / 内容区 / 底部 Tab 栏
+   --------------------------------------------------------------------------- */
+
+/* 三个区域共用同一个居中限宽容器 */
+.app-header__inner,
+.app-main,
+.tabbar__inner {
+  width: 100%;
+  max-width: var(--maxw);
   margin: 0 auto;
-  padding: 0 20px 60px;
 }
 
-.topbar {
+/* --- 顶部标题栏 --- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--header-bg);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid transparent;
+  transition: background-color 0.3s ease;
+}
+
+.app-header__inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 4px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: var(--bg);
-  backdrop-filter: blur(8px);
+  height: var(--header-h);
+  padding: 0 16px;
 }
 
-.brand {
-  font-size: 20px;
+.app-header__title {
+  margin: 0;
+  font-size: 17px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.2px;
 }
 
-.nav {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.nav a {
-  padding: 8px 14px;
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.nav a:hover {
-  color: var(--text);
+/* 图标按钮（主题切换等） */
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
   background: var(--card);
-}
-
-.nav a.router-link-active {
-  color: #fff;
-  background: var(--primary);
   box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease;
+}
+.icon-btn:active {
+  transform: scale(0.92);
 }
 
-.main {
-  padding-top: 8px;
+/* --- 内容区 --- */
+.app-main {
+  /* 底部留白 = Tab 栏高度 + 安全区 + 呼吸空间，保证最后一项不被 Tab 栏遮住 */
+  padding: 14px 16px calc(var(--tabbar-h) + 26px + env(safe-area-inset-bottom, 0px));
 }
 
-/* ---------- 通用卡片 ---------- */
-.page {
-  animation: fade-in 0.35s ease;
+/* --- 底部 Tab 栏 --- */
+.tabbar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%); /* 配合 left:50% 实现限宽居中 */
+  bottom: 0;
+  width: 100%;
+  max-width: var(--maxw);
+  z-index: 30;
+  background: var(--tabbar-bg);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  border-top: 1px solid var(--border);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 24px rgba(23, 30, 41, 0.07);
+  /* iPhone 底部小黑条安全区 */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-h1.page-title {
-  font-size: 26px;
-  margin: 6px 0 4px;
+.tabbar__inner {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr); /* 5 个 Tab 等分 */
 }
 
-.subtitle {
+.tabbar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 0 6px;
   color: var(--muted);
-  margin: 0 0 22px;
-  font-size: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  transition: color 0.2s ease, transform 0.15s ease;
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.tabbar__item svg {
+  width: 23px;
+  height: 23px;
+  display: block;
 }
 
-@keyframes pop-in {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+.tabbar__item:active {
+  transform: scale(0.9);
 }
 
-/* ---------- 通用按钮 ---------- */
+/* 当前激活的 Tab（vue-router 自动加上的类名） */
+.tabbar__item.router-link-active {
+  color: var(--primary);
+}
+
+/* ---------------------------------------------------------------------------
+   4. 通用组件：卡片 / 按钮 / 区块标题 / 空状态
+   --------------------------------------------------------------------------- */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-height: 48px; /* 移动端最小可点区域 */
   padding: 12px 20px;
-  border-radius: var(--radius-sm);
+  border-radius: 14px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   background: var(--card);
   color: var(--text);
   box-shadow: var(--shadow-sm);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
-}
-
-.btn:hover {
-  transform: translateY(-2px);
+  transition: transform 0.15s ease, opacity 0.2s ease, background 0.2s ease;
 }
 
 .btn:active {
-  transform: translateY(0);
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn:disabled:active {
+  transform: none;
 }
 
 .btn-primary {
@@ -217,29 +307,73 @@ h1.page-title {
   width: 100%;
 }
 
-/* ---------- 通用卡片容器 ---------- */
-.card {
-  background: var(--card);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 22px;
+/* 区块小标题 */
+.section-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
 }
 
+/* 空状态 */
 .empty-hint {
   text-align: center;
   color: var(--muted);
-  padding: 50px 20px;
-  font-size: 15px;
+  padding: 44px 18px;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
-@media (max-width: 600px) {
-  .topbar {
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
+/* ---------------------------------------------------------------------------
+   5. 页面过渡与动画
+   --------------------------------------------------------------------------- */
+.page {
+  animation: page-in 0.28s ease;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
-  .nav {
-    width: 100%;
-    justify-content: space-between;
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 路由切换过渡 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   6. 大屏微调：桌面端加大留白、内容更舒展
+   --------------------------------------------------------------------------- */
+@media (min-width: 720px) {
+  :root {
+    --header-h: 60px;
+  }
+  .app-main {
+    padding-top: 20px;
+  }
+  .app-header__title {
+    font-size: 18px;
   }
 }

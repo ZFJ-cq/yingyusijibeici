@@ -1,58 +1,83 @@
 <template>
   <div class="page learn">
-    <h1 class="page-title">学新词</h1>
-    <p class="subtitle">卡片展示单词、音标、释义与例句，点击【认识】开始记忆</p>
+    <!-- ==================== 开始前：选择本次学习数量 ==================== -->
+    <section v-if="!started" class="card setup">
+      <h2 class="setup__title">本次学多少个新词？</h2>
+      <p class="setup__desc">词库中还有 {{ available }} 个新词未学习</p>
 
-    <!-- 设置：本次学习数量 -->
-    <div class="card settings-row" v-if="!started">
-      <label class="field-label">本次学习新词数量</label>
-      <div class="batch-control">
-        <button class="step-btn" @click="decrement">−</button>
+      <!-- 数量步进器 -->
+      <div class="stepper">
+        <button class="stepper__btn" aria-label="减少" @click="decrement">−</button>
         <input
-          class="batch-input"
+          class="stepper__input"
           type="number"
+          inputmode="numeric"
           min="1"
           :max="available"
-          v-model.number="batch"
+          :value="batch"
+          @change="onBatchInput"
         />
-        <button class="step-btn" @click="increment">＋</button>
-        <span class="available-hint">共可学 {{ available }} 个</span>
+        <button class="stepper__btn" aria-label="增加" @click="increment">＋</button>
       </div>
-      <button class="btn btn-primary btn-block start-btn" @click="start">开始学习</button>
-    </div>
 
-    <!-- 学习进行中 -->
-    <div v-if="started && !finished" class="learn-session">
-      <div class="session-progress">
-        <span>剩余 {{ remaining.length }} 个</span>
-        <span class="counter">已认识 {{ known }} · 不认识 {{ unknown }}</span>
+      <!-- 常用数量快捷选择 -->
+      <div class="presets">
+        <button
+          v-for="p in presets"
+          :key="p"
+          class="preset"
+          :class="{ 'preset--active': batch === p }"
+          @click="setPreset(p)"
+        >
+          {{ p }}
+        </button>
       </div>
+
+      <button class="btn btn-primary btn-block" :disabled="available === 0" @click="start">
+        {{ available === 0 ? '没有新词可学了' : '开始学习' }}
+      </button>
+    </section>
+
+    <!-- ==================== 学习中 ==================== -->
+    <section v-if="started && !finished" class="session">
+      <div class="session__bar">
+        <span>剩余 {{ remaining.length }} 个</span>
+        <span class="session__count">认识 {{ known }} · 不认识 {{ unknown }}</span>
+      </div>
+
       <WordCard :word="current" mode="learn" />
-      <div class="action-row">
+
+      <!-- 认识 / 不认识 -->
+      <div class="actions">
         <button class="btn btn-danger" @click="onUnknown">不认识</button>
         <button class="btn btn-success" @click="onKnown">认识</button>
       </div>
-    </div>
+      <p class="session__tip">选择「不认识」的单词会排到本批末尾，稍后再来一次</p>
+    </section>
 
-    <!-- 学习完成 -->
-    <div v-if="finished" class="card result-card">
-      <div class="result-emoji">🎉</div>
-      <h2>本批学习完成</h2>
-      <p class="result-text">
-        认识 <b>{{ known }}</b> 个 · 反复不认识 <b>{{ unknown }}</b> 个<br />
-        这些单词已加入复习计划，将在 1 天后首次复习。
+    <!-- ==================== 本批完成 ==================== -->
+    <section v-if="finished" class="card result">
+      <span class="result__emoji">🎉</span>
+      <h2 class="result__title">本批学习完成</h2>
+      <p class="result__text">
+        认识 <b>{{ known }}</b> 个 · 反复不认识 <b>{{ unknown }}</b> 个
       </p>
-      <div class="result-actions">
+      <p class="result__note">这些词已加入复习计划，将在 1 天后首次复习</p>
+      <div class="result__actions">
         <button class="btn btn-ghost" @click="goHome">返回看板</button>
-        <button class="btn btn-primary" v-if="available > 0" @click="restart">再学一批</button>
+        <button v-if="available > 0" class="btn btn-primary" @click="reset">再学一批</button>
       </div>
-    </div>
-
-    <div v-if="started && !finished && remaining.length === 0" class="empty-hint">加载中…</div>
+    </section>
   </div>
 </template>
 
 <script setup>
+/**
+ * 学新词
+ * 流程：选数量 → 逐张卡片判断「认识 / 不认识」→ 出本批统计
+ * - 认识   ：记入复习计划（1 天后首次复习）
+ * - 不认识 ：移到本批队尾，稍后重学（仍算"新词"，不写入进度）
+ */
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import WordCard from '../components/WordCard.vue'
@@ -61,14 +86,17 @@ import { useStore } from '../composables/useStore'
 const router = useRouter()
 const { state, getNewWords, learnWord } = useStore()
 
-const available = ref(0)
-const batch = ref(state.settings.batchSize)
-const started = ref(false)
-const finished = ref(false)
-const remaining = ref([])
-const known = ref(0)
-const unknown = ref(0)
+const presets = [10, 20, 30, 50] // 常用数量
 
+const available = ref(0) // 词库中剩余新词数
+const batch = ref(state.settings.batchSize) // 本次计划学习数量
+const started = ref(false) // 是否已开始
+const finished = ref(false) // 本批是否完成
+const remaining = ref([]) // 待学队列（当前卡 = 队列第一项）
+const known = ref(0) // 本批「认识」次数
+const unknown = ref(0) // 本批「不认识」次数
+
+/** 当前卡片 */
 const current = computed(() => remaining.value[0] || null)
 
 function decrement() {
@@ -77,10 +105,20 @@ function decrement() {
 function increment() {
   batch.value = Math.min(available.value || 1, batch.value + 1)
 }
+function setPreset(n) {
+  batch.value = Math.min(n, available.value || n)
+}
+/** 手动输入数量：做一次范围钳制 */
+function onBatchInput(e) {
+  const v = parseInt(e.target.value, 10) || 1
+  batch.value = Math.max(1, Math.min(available.value || 1, v))
+  e.target.value = batch.value
+}
 
+/** 开始一批学习：按设置数量取出新词（乱序，见 useStore.getNewWords） */
 function start() {
   const n = Math.max(1, Math.min(batch.value, available.value))
-  state.settings.batchSize = n
+  state.settings.batchSize = n // 记住用户的选择
   remaining.value = getNewWords(n)
   known.value = 0
   unknown.value = 0
@@ -88,29 +126,30 @@ function start() {
   finished.value = remaining.value.length === 0
 }
 
+/** 认识：写入复习计划并从队列移除 */
 function onKnown() {
   if (!current.value) return
   learnWord(current.value.word)
   known.value++
   remaining.value.shift()
-  checkFinished()
+  if (remaining.value.length === 0) finished.value = true
 }
+
+/** 不认识：计数后移到队尾，稍后重学 */
 function onUnknown() {
   if (!current.value) return
   unknown.value++
-  // 不认识：移到队尾，稍后再学（保持为“新词”）
-  const w = remaining.value.shift()
-  remaining.value.push(w)
+  remaining.value.push(remaining.value.shift())
 }
-function checkFinished() {
-  if (remaining.value.length === 0) finished.value = true
-}
-function restart() {
+
+/** 再学一批：回到设置界面并刷新剩余数量 */
+function reset() {
   started.value = false
   finished.value = false
   available.value = getNewWords().length
   batch.value = Math.min(state.settings.batchSize, available.value || 1)
 }
+
 function goHome() {
   router.push('/')
 }
@@ -122,94 +161,142 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.settings-row {
-  margin-bottom: 18px;
+/* ---------- 设置区 ---------- */
+.setup__title {
+  margin: 0 0 4px;
+  font-size: 18px;
 }
-.field-label {
-  font-weight: 600;
-  display: block;
-  margin-bottom: 10px;
+.setup__desc {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--muted);
 }
-.batch-control {
+
+.stepper {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 18px;
-  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 14px;
 }
-.step-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+.stepper__btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: var(--primary-soft);
   color: var(--primary);
+  font-size: 22px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.stepper__btn:active {
+  transform: scale(0.92);
+}
+.stepper__input {
+  width: 88px;
+  height: 44px;
+  text-align: center;
   font-size: 20px;
   font-weight: 700;
-}
-.batch-input {
-  width: 70px;
-  height: 38px;
-  text-align: center;
-  font-size: 16px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
+  /* 去掉 number 输入框的上下箭头，移动端更清爽 */
+  -moz-appearance: textfield;
 }
-.available-hint {
+.stepper__input::-webkit-outer-spin-button,
+.stepper__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.presets {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.preset {
+  flex: 1;
+  max-width: 74px;
+  padding: 9px 0;
+  border-radius: 10px;
+  background: var(--card-soft);
+  border: 1px solid var(--border);
   color: var(--muted);
   font-size: 13px;
+  font-weight: 700;
+  transition: all 0.16s ease;
 }
-.start-btn {
-  margin-top: 4px;
+.preset--active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
-.learn-session {
-  animation: fade-in 0.3s ease;
-}
-.session-progress {
+/* ---------- 学习区 ---------- */
+.session__bar {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  font-size: 14px;
-  color: var(--muted);
+  margin-bottom: 10px;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--muted);
 }
-.counter {
+.session__count {
   color: var(--text);
 }
-.action-row {
+
+.actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 18px;
+  gap: 12px;
+  margin-top: 16px;
 }
-.action-row .btn {
-  padding: 16px;
-  font-size: 17px;
+.actions .btn {
+  min-height: 54px;
+  font-size: 16px;
 }
 
-.result-card {
-  text-align: center;
-  animation: pop-in 0.3s ease;
-}
-.result-emoji {
-  font-size: 56px;
-}
-.result-text {
+.session__tip {
+  margin: 12px 4px 0;
+  font-size: 12px;
   color: var(--muted);
-  line-height: 1.7;
-  margin: 14px 0 22px;
+  text-align: center;
 }
-.result-actions {
+
+/* ---------- 结果区 ---------- */
+.result {
+  text-align: center;
+  padding: 30px 20px;
+}
+.result__emoji {
+  font-size: 52px;
+  line-height: 1;
+}
+.result__title {
+  margin: 12px 0 0;
+  font-size: 20px;
+}
+.result__text {
+  margin: 14px 0 0;
+  font-size: 15px;
+}
+.result__note {
+  margin: 8px 0 22px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.result__actions {
   display: flex;
   gap: 12px;
   justify-content: center;
 }
-
-@media (max-width: 600px) {
-  .action-row {
-    grid-template-columns: 1fr;
-  }
+.result__actions .btn {
+  flex: 1;
 }
 </style>

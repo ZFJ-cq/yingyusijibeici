@@ -5,8 +5,14 @@ import Review from '../views/Review.vue'
 import Stats from '../views/Stats.vue'
 import Settings from '../views/Settings.vue'
 
+/**
+ * 路由表
+ * 使用 hash 模式（createWebHashHistory）：
+ * 静态托管 / GitHub Pages 子路径下刷新子页面不会 404，无需服务端重写规则。
+ * meta.title 会被 App.vue 顶部标题栏读取展示。
+ */
 const routes = [
-  { path: '/', name: 'home', component: Home, meta: { title: '看板' } },
+  { path: '/', name: 'home', component: Home, meta: { title: '四级背单词' } },
   { path: '/learn', name: 'learn', component: Learn, meta: { title: '学新词' } },
   { path: '/review', name: 'review', component: Review, meta: { title: '复习' } },
   { path: '/stats', name: 'stats', component: Stats, meta: { title: '统计' } },

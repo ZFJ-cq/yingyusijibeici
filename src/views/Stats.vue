@@ -1,87 +1,73 @@
 <template>
   <div class="page stats">
-    <h1 class="page-title">学习统计</h1>
-    <p class="subtitle">你的记忆轨迹一览</p>
-
-    <!-- 概览数字 -->
-    <div class="overview-grid">
-      <div class="ov-card">
-        <div class="ov-num">{{ stats.totalWords }}</div>
-        <div class="ov-label">词库总量</div>
+    <!-- ==================== 概览数字 ==================== -->
+    <div class="overview">
+      <div class="overview__item">
+        <span class="overview__num">{{ stats.totalWords }}</span>
+        <span class="overview__label">词库总量</span>
       </div>
-      <div class="ov-card">
-        <div class="ov-num">{{ stats.learnedCount }}</div>
-        <div class="ov-label">已学习</div>
+      <div class="overview__item">
+        <span class="overview__num">{{ stats.learnedCount }}</span>
+        <span class="overview__label">已学习</span>
       </div>
-      <div class="ov-card">
-        <div class="ov-num">{{ stats.masteredCount }}</div>
-        <div class="ov-label">已掌握</div>
+      <div class="overview__item">
+        <span class="overview__num">{{ stats.masteredCount }}</span>
+        <span class="overview__label">已掌握</span>
       </div>
-      <div class="ov-card">
-        <div class="ov-num">{{ stats.totalReviews }}</div>
-        <div class="ov-label">累计复习</div>
+      <div class="overview__item">
+        <span class="overview__num">{{ stats.totalReviews }}</span>
+        <span class="overview__label">累计复习</span>
       </div>
     </div>
 
-    <!-- 状态分布 -->
-    <div class="card chart-card">
-      <h3 class="chart-title">单词状态分布</h3>
-      <div class="bar-row">
-        <span class="bar-name">新词</span>
-        <div class="bar-track">
-          <div class="bar-fill new" :style="{ width: pct(stats.newCount) }"></div>
-        </div>
-        <span class="bar-val">{{ stats.newCount }}</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-name">学习中</span>
-        <div class="bar-track">
-          <div class="bar-fill learning" :style="{ width: pct(stats.learningCount) }"></div>
-        </div>
-        <span class="bar-val">{{ stats.learningCount }}</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-name">已掌握</span>
-        <div class="bar-track">
-          <div class="bar-fill mastered" :style="{ width: pct(stats.masteredCount) }"></div>
-        </div>
-        <span class="bar-val">{{ stats.masteredCount }}</span>
-      </div>
-    </div>
+    <!-- ==================== 单词状态分布 ==================== -->
+    <section class="card chart">
+      <h3 class="section-title">单词状态分布</h3>
 
-    <!-- 近 7 天复习活跃度 -->
-    <div class="card chart-card">
-      <h3 class="chart-title">近 7 天复习活跃度</h3>
-      <div class="week-chart">
-        <div class="week-col" v-for="d in last7" :key="d.label">
-          <div class="week-bars">
-            <div
-              class="week-bar remember"
-              :style="{ height: barHeight(d.remember) }"
-              :title="`记得 ${d.remember}`"
-            ></div>
-            <div
-              class="week-bar forget"
-              :style="{ height: barHeight(d.forget) }"
-              :title="`不记得 ${d.forget}`"
-            ></div>
+      <div class="bar-row" v-for="row in distribution" :key="row.key">
+        <span class="bar-row__name">{{ row.name }}</span>
+        <div class="bar-row__track">
+          <div class="bar-row__fill" :class="'bar-row__fill--' + row.key" :style="{ width: row.width }"></div>
+        </div>
+        <span class="bar-row__val">{{ row.value }}</span>
+      </div>
+    </section>
+
+    <!-- ==================== 近 7 天复习活跃度 ==================== -->
+    <section class="card chart">
+      <h3 class="section-title">近 7 天复习活跃度</h3>
+
+      <div class="week">
+        <div v-for="d in last7" :key="d.label" class="week__col">
+          <div class="week__bars">
+            <div class="week__bar week__bar--remember" :style="{ height: barHeight(d.remember) }"></div>
+            <div class="week__bar week__bar--forget" :style="{ height: barHeight(d.forget) }"></div>
           </div>
-          <div class="week-label">{{ d.label }}</div>
+          <span class="week__label">{{ d.label }}</span>
         </div>
       </div>
-      <div class="legend">
-        <span><i class="dot remember"></i>记得 {{ stats.rememberCount }}</span>
-        <span><i class="dot forget"></i>不记得 {{ stats.forgetCount }}</span>
-      </div>
-    </div>
 
-    <div v-if="stats.learnedCount === 0" class="empty-hint">
+      <div class="legend">
+        <span><i class="legend__dot legend__dot--remember"></i>记得 {{ stats.rememberCount }}</span>
+        <span><i class="legend__dot legend__dot--forget"></i>不记得 {{ stats.forgetCount }}</span>
+      </div>
+    </section>
+
+    <!-- 没有任何学习记录时的提示 -->
+    <p v-if="stats.learnedCount === 0" class="empty-hint">
       还没有学习记录，去「学新词」开始吧～
-    </div>
+    </p>
   </div>
 </template>
 
 <script setup>
+/**
+ * 统计页
+ * 1) 四个概览数字
+ * 2) 单词状态分布（新词 / 学习中 / 已掌握）条形图
+ * 3) 近 7 天复习活跃度（记得 / 不记得）柱状图
+ * 图表全部使用原生 div + CSS 绘制，不引入任何图表库。
+ */
 import { computed } from 'vue'
 import { useStore } from '../composables/useStore'
 
@@ -89,154 +75,176 @@ const { stats, getLast7Days } = useStore()
 
 const last7 = computed(() => getLast7Days())
 
-function pct(n) {
+/** 状态分布数据：宽度按占词库总量的比例计算（留 2% 最小可见宽度） */
+const distribution = computed(() => {
   const total = stats.value.totalWords || 1
-  return Math.max(2, Math.round((n / total) * 100)) + '%'
-}
+  const rows = [
+    { key: 'new', name: '新词', value: stats.value.newCount },
+    { key: 'learning', name: '学习中', value: stats.value.learningCount },
+    { key: 'mastered', name: '已掌握', value: stats.value.masteredCount }
+  ]
+  return rows.map((r) => ({
+    ...r,
+    width: Math.max(2, Math.round((r.value / total) * 100)) + '%'
+  }))
+})
 
-const maxCount = computed(() => {
+/** 7 天柱状图的当天最大值（用于归一化高度） */
+const maxDaily = computed(() => {
   let m = 1
   for (const d of last7.value) m = Math.max(m, d.remember + d.forget)
   return m
 })
+
+/** 柱高：0 次返回 0%（不画柱子），非 0 至少 6% 保证可见 */
 function barHeight(n) {
   if (!n) return '0%'
-  return Math.max(4, Math.round((n / maxCount.value) * 100)) + '%'
+  return Math.max(6, Math.round((n / maxDaily.value) * 100)) + '%'
 }
 </script>
 
 <style scoped>
-.overview-grid {
+/* ---------- 概览 ---------- */
+.overview {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 18px;
+  gap: 8px;
+  margin-bottom: 14px;
 }
-.ov-card {
+.overview__item {
   background: var(--card);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
-  padding: 18px;
+  padding: 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   text-align: center;
 }
-.ov-num {
-  font-size: 28px;
+.overview__num {
+  font-size: 20px;
   font-weight: 800;
+  line-height: 1.15;
 }
-.ov-label {
+.overview__label {
+  font-size: 11px;
   color: var(--muted);
-  font-size: 13px;
-  margin-top: 4px;
 }
 
-.chart-card {
-  margin-bottom: 18px;
+/* ---------- 图表容器 ---------- */
+.chart {
+  margin-bottom: 14px;
 }
-.chart-title {
-  margin: 0 0 16px;
-  font-size: 16px;
-}
+
+/* ---------- 状态分布条 ---------- */
 .bar-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 12px;
 }
-.bar-name {
-  width: 48px;
-  font-size: 14px;
+.bar-row:last-child {
+  margin-bottom: 0;
+}
+.bar-row__name {
+  width: 46px;
+  flex-shrink: 0;
+  font-size: 13px;
   color: var(--muted);
 }
-.bar-track {
+.bar-row__track {
   flex: 1;
-  height: 16px;
-  background: var(--border);
+  height: 14px;
   border-radius: 999px;
+  background: var(--border);
   overflow: hidden;
 }
-.bar-fill {
+.bar-row__fill {
   height: 100%;
   border-radius: 999px;
   transition: width 0.6s ease;
 }
-.bar-fill.new {
+.bar-row__fill--new {
   background: var(--primary);
 }
-.bar-fill.learning {
+.bar-row__fill--learning {
   background: var(--warning);
 }
-.bar-fill.mastered {
+.bar-row__fill--mastered {
   background: var(--success);
 }
-.bar-val {
-  width: 40px;
+.bar-row__val {
+  width: 42px;
+  flex-shrink: 0;
   text-align: right;
+  font-size: 13px;
   font-weight: 700;
-  font-size: 14px;
 }
 
-.week-chart {
+/* ---------- 7 天柱状图 ---------- */
+.week {
   display: flex;
-  justify-content: space-between;
   align-items: flex-end;
-  height: 160px;
-  gap: 8px;
-  padding: 0 4px;
+  gap: 6px;
+  height: 150px;
 }
-.week-col {
+.week__col {
   flex: 1;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: 100%;
 }
-.week-bars {
+.week__bars {
   flex: 1;
+  width: 100%;
   display: flex;
   align-items: flex-end;
-  gap: 4px;
-  width: 100%;
   justify-content: center;
+  gap: 3px;
 }
-.week-bar {
-  width: 12px;
+.week__bar {
+  width: 11px;
   border-radius: 4px 4px 0 0;
   transition: height 0.5s ease;
 }
-.week-bar.remember {
+.week__bar--remember {
   background: var(--success);
 }
-.week-bar.forget {
+.week__bar--forget {
   background: var(--danger);
 }
-.week-label {
-  margin-top: 8px;
+.week__label {
+  margin-top: 7px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---------- 图例 ---------- */
+.legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
   font-size: 12px;
   color: var(--muted);
 }
-.legend {
-  display: flex;
-  gap: 18px;
-  margin-top: 14px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.legend .dot {
+.legend__dot {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  margin-right: 6px;
+  margin-right: 5px;
 }
-.dot.remember {
+.legend__dot--remember {
   background: var(--success);
 }
-.dot.forget {
+.legend__dot--forget {
   background: var(--danger);
 }
 
-@media (max-width: 600px) {
-  .overview-grid {
+/* 窄屏（≤360px）时概览改成 2×2，避免数字被挤换行 */
+@media (max-width: 360px) {
+  .overview {
     grid-template-columns: repeat(2, 1fr);
   }
 }
