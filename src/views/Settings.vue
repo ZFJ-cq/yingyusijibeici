@@ -131,6 +131,22 @@
 
       <div class="row">
         <div class="row__main">
+          <span class="row__title">清空生词本</span>
+          <span class="row__desc">当前 {{ stats.notebookCount }} 个单词（练习错题可加入）</span>
+        </div>
+        <button class="btn btn-ghost btn--compact" @click="onClearNotebook">清空</button>
+      </div>
+
+      <div class="row">
+        <div class="row__main">
+          <span class="row__title">重置练习统计</span>
+          <span class="row__desc">清空练习组数与正确率（不影响复习记录）</span>
+        </div>
+        <button class="btn btn-ghost btn--compact" @click="onResetPractice">重置</button>
+      </div>
+
+      <div class="row">
+        <div class="row__main">
           <span class="row__title row__title--danger">重置学习记录</span>
           <span class="row__desc">清空单词进度（保留偏好设置）</span>
         </div>
@@ -174,7 +190,9 @@ const {
   setOrder,
   exportData,
   importData,
-  resetProgress
+  resetProgress,
+  clearNotebook,
+  resetPracticeStats
 } = useStore()
 
 const { toast, confirmDialog } = useUI()
@@ -227,6 +245,35 @@ async function onReset() {
   if (!ok) return
   resetProgress()
   toast('学习记录已重置')
+}
+
+/** 清空生词本（不影响复习进度） */
+async function onClearNotebook() {
+  if (stats.value.notebookCount === 0) {
+    toast('生词本已经是空的')
+    return
+  }
+  const ok = await confirmDialog({
+    title: '清空生词本',
+    message: `将移除生词本中的 ${stats.value.notebookCount} 个单词。复习进度与遗忘曲线不受影响。`,
+    confirmText: '清空',
+    danger: true
+  })
+  if (!ok) return
+  clearNotebook()
+  toast('生词本已清空')
+}
+
+/** 重置练习统计（不影响复习进度） */
+async function onResetPractice() {
+  const ok = await confirmDialog({
+    title: '重置练习统计',
+    message: '将清空练习组数、答题数与正确率。复习进度与遗忘曲线不受影响。',
+    confirmText: '重置'
+  })
+  if (!ok) return
+  resetPracticeStats()
+  toast('练习统计已重置')
 }
 </script>
 

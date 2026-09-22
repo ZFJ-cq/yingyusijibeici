@@ -212,7 +212,8 @@ a {
 
 .tabbar__inner {
   display: grid;
-  grid-template-columns: repeat(5, 1fr); /* 5 个 Tab 等分 */
+  /* 6 个 Tab 等分：看板 / 学新词 / 复习 / 练习 / 统计 / 设置 */
+  grid-template-columns: repeat(6, 1fr);
 }
 
 .tabbar__item {
@@ -221,16 +222,18 @@ a {
   align-items: center;
   gap: 3px;
   padding: 8px 0 6px;
+  min-width: 0; /* 允许在窄屏下压缩，避免撑破 */
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   line-height: 1;
+  white-space: nowrap;
   transition: color 0.2s ease, transform 0.15s ease;
 }
 
 .tabbar__item svg {
-  width: 23px;
-  height: 23px;
+  width: 21px;
+  height: 21px;
   display: block;
 }
 
@@ -375,5 +378,20 @@ a {
   }
   .app-header__title {
     font-size: 18px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   7. 小屏微调：6 个 Tab 在 320-360px 下进一步收紧，保证不换行不溢出
+   --------------------------------------------------------------------------- */
+@media (max-width: 360px) {
+  .tabbar__item {
+    font-size: 9.5px;
+    padding: 7px 0 5px;
+    letter-spacing: -0.2px;
+  }
+  .tabbar__item svg {
+    width: 19px;
+    height: 19px;
   }
 }

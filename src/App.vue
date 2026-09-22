@@ -66,6 +66,7 @@ const tabs = [
   { path: '/', label: '看板', icon: ['M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M9 22V12h6v10'] },
   { path: '/learn', label: '学新词', icon: ['M4 5.5A2.5 2.5 0 0 1 6.5 3H20v14H6.5A2.5 2.5 0 0 0 4 19.5z', 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20v4H6.5A2.5 2.5 0 0 1 4 19.5z'] },
   { path: '/review', label: '复习', icon: ['M23 4v6h-6', 'M20.49 15a9 9 0 1 1-2.12-9.36L23 10'] },
+  { path: '/practice', label: '练习', icon: ['M12 20h9', 'M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'] },
   { path: '/stats', label: '统计', icon: ['M18 20V10', 'M12 20V4', 'M6 20v-6'] },
   { path: '/settings', label: '设置', icon: ['M4 21v-7', 'M4 10V3', 'M12 21v-9', 'M12 8V3', 'M20 21v-5', 'M20 12V3', 'M1 14h6', 'M9 8h6', 'M17 16h6'] }
 ]

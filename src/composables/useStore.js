@@ -4,20 +4,24 @@ import { WORDS } from '../data/words'
 /**
  * 数据层（纯前端，无后端）
  * ----------------------------------------------------------------------------
- * 全部学习数据都存在浏览器 localStorage 的单一 key 下，结构如下：
+ * 全部数据都存在浏览器 localStorage 的单一 key 下，结构如下：
  *
  * {
  *   version: 1,
  *   settings: { theme, batchSize, speechEnabled, speechRate, order },
- *   progress: {
- *     [单词]: { state, learnedAt, reviewsDone, nextReviewAt, lastReviewAt, history }
- *   }
+ *   progress: { [单词]: { state, learnedAt, reviewsDone, nextReviewAt, lastReviewAt, history } },
+ *   notebook: { [单词]: { addedAt } },
+ *   practice: { sessions, answered, correct }
  * }
  *
  * progress 里只有"学过"的词才会有记录：
  *   - 没有记录        → 属于"新词"
  *   - state=learning  → 已学习，正在按遗忘曲线复习中
  *   - state=mastered  → 已走完 5 个复习节点，视为已掌握
+ *
+ * ⚠️ 关键约束：只有【复习模块】(reviewRemember / reviewForget / learnWord) 会写 progress。
+ *    【练习模式】答对答错都不碰 progress，只把错题记进 notebook，
+ *    因此练习不会改变任何单词的 SRS 复习时间戳。
  */
 
 /** localStorage 存储键名 */
@@ -42,7 +46,16 @@ function defaultSettings() {
 
 /** 初始（空）状态 */
 function defaultState() {
-  return { version: 1, settings: defaultSettings(), progress: {} }
+  return {
+    version: 1,
+    settings: defaultSettings(),
+    // SRS 复习进度：⚠️ 只有【复习模块】会写这里，练习模式绝不触碰
+    progress: {},
+    // 生词本：{ [单词]: { addedAt } }，练习错题可一键加入，也可作为练习词池
+    notebook: {},
+    // 练习统计（与 SRS 完全独立，仅用于展示练习量）
+    practice: { sessions: 0, answered: 0, correct: 0 }
+  }
 }
 
 /** 从 localStorage 读取状态；损坏或缺失时回退到默认值 */
@@ -56,7 +69,9 @@ function loadState() {
         version: 1,
         // 与默认值合并：这样后续新增设置项时，老用户也能自动拿到默认值
         settings: { ...def.settings, ...(parsed.settings || {}) },
-        progress: parsed.progress && typeof parsed.progress === 'object' ? parsed.progress : {}
+        progress: parsed.progress && typeof parsed.progress === 'object' ? parsed.progress : {},
+        notebook: parsed.notebook && typeof parsed.notebook === 'object' ? parsed.notebook : {},
+        practice: { ...def.practice, ...(parsed.practice || {}) }
       }
     }
   } catch (e) {
@@ -186,6 +201,83 @@ function getDueReviews() {
   return applyOrder(WORDS.filter((w) => isDue(w.word)))
 }
 
+/* ==========================================================================
+   练习模式：词池筛选 / 生词本 / 练习统计
+   ⚠️ 以下方法都只读写 notebook 与 practice，绝不修改 progress（SRS 进度），
+      所以练习答错不会影响遗忘曲线的复习时间戳。
+   ========================================================================== */
+
+/**
+ * 按词池取候选单词（供练习模式使用）
+ * @param {'all'|'due'|'mastered'|'notebook'} pool
+ */
+function getPoolWords(pool = 'all') {
+  switch (pool) {
+    case 'due':
+      return WORDS.filter((w) => isDue(w.word))
+    case 'mastered':
+      return WORDS.filter((w) => {
+        const p = state.progress[w.word]
+        return !!p && p.state === 'mastered'
+      })
+    case 'notebook':
+      return WORDS.filter((w) => !!state.notebook[w.word])
+    case 'all':
+    default:
+      return WORDS.slice()
+  }
+}
+
+/** 该词是否已在生词本中 */
+function isInNotebook(word) {
+  return !!state.notebook[word]
+}
+
+/** 加入生词本（已存在则忽略） */
+function addToNotebook(word) {
+  if (!state.notebook[word]) state.notebook[word] = { addedAt: now() }
+}
+
+/**
+ * 批量加入生词本（"一键加入错题"）
+ * @returns {number} 实际新增的数量（已存在的不会重复计数）
+ */
+function addManyToNotebook(words) {
+  let added = 0
+  for (const word of words) {
+    if (!state.notebook[word]) {
+      state.notebook[word] = { addedAt: now() }
+      added++
+    }
+  }
+  return added
+}
+
+/** 从生词本移除 */
+function removeFromNotebook(word) {
+  delete state.notebook[word]
+}
+
+/** 清空生词本 */
+function clearNotebook() {
+  state.notebook = {}
+}
+
+/**
+ * 记录一次练习结果（只累加练习统计，不涉及 SRS）
+ * @param {{answered:number, correct:number}} result
+ */
+function recordPractice({ answered = 0, correct = 0 } = {}) {
+  state.practice.sessions += 1
+  state.practice.answered += answered
+  state.practice.correct += correct
+}
+
+/** 重置练习统计 */
+function resetPracticeStats() {
+  state.practice = { sessions: 0, answered: 0, correct: 0 }
+}
+
 /**
  * 近 7 天每日复习次数（用于统计页柱状图）
  * 返回 [{ label:'9/22', count, remember, forget }]，从最早到今天
@@ -268,7 +360,20 @@ const stats = computed(() => {
     totalReviews,
     rememberCount,
     forgetCount,
-    todayReviews
+    todayReviews,
+    notebookCount: Object.keys(state.notebook).length // 生词本词数
+  }
+})
+
+/** 练习统计（独立于 SRS，仅用于展示练习量与正确率） */
+const practiceStats = computed(() => {
+  const p = state.practice
+  return {
+    sessions: p.sessions,
+    answered: p.answered,
+    correct: p.correct,
+    wrong: Math.max(0, p.answered - p.correct),
+    accuracy: p.answered ? Math.round((p.correct / p.answered) * 100) : 0
   }
 })
 
@@ -302,26 +407,43 @@ function setOrder(order) {
 /** 导出备份：把整个 state 序列化成 JSON 字符串 */
 function exportData() {
   // 只导出当前词库中真实存在的单词。
-  // 若曾换过词库，progress 里可能残留旧词书的"幽灵记录"，
-  // 它们不参与统计、也复习不到，过滤掉能让备份文件更干净。
+  // 若曾换过词库，progress/notebook 里可能残留旧词书的"幽灵记录"，
+  // 它们不参与统计、也练不到，过滤掉能让备份文件更干净。
   const valid = new Set(WORDS.map((w) => w.word))
-  const progress = {}
-  for (const [word, record] of Object.entries(state.progress)) {
-    if (valid.has(word)) progress[word] = record
+  const pick = (obj) => {
+    const out = {}
+    for (const [word, record] of Object.entries(obj)) {
+      if (valid.has(word)) out[word] = record
+    }
+    return out
   }
-  return JSON.stringify({ version: state.version, settings: state.settings, progress }, null, 2)
+  return JSON.stringify(
+    {
+      version: state.version,
+      settings: state.settings,
+      progress: pick(state.progress),
+      notebook: pick(state.notebook),
+      practice: state.practice
+    },
+    null,
+    2
+  )
 }
 
-/** 导入备份：解析后覆盖当前设置与进度（字段缺失时用默认值补齐） */
+/** 导入备份：解析后覆盖当前设置、进度、生词本与练习统计（字段缺失时用默认值补齐） */
 function importData(jsonString) {
   const parsed = JSON.parse(jsonString)
   const next = defaultState()
   if (parsed && typeof parsed === 'object') {
     next.settings = { ...next.settings, ...(parsed.settings || {}) }
     next.progress = parsed.progress && typeof parsed.progress === 'object' ? parsed.progress : {}
+    next.notebook = parsed.notebook && typeof parsed.notebook === 'object' ? parsed.notebook : {}
+    next.practice = { ...next.practice, ...(parsed.practice || {}) }
   }
   state.settings = next.settings
   state.progress = next.progress
+  state.notebook = next.notebook
+  state.practice = next.practice
 }
 
 /** 重置学习记录（清空所有单词进度，保留主题等偏好设置） */
@@ -334,13 +456,25 @@ export function useStore() {
   return {
     state,
     stats,
+    practiceStats,
     REVIEW_INTERVALS,
+    // 学习 / 复习（会写 SRS）
     learnWord,
     reviewRemember,
     reviewForget,
     getNewWords,
     getDueReviews,
     getLast7Days,
+    // 练习模式（不写 SRS）
+    getPoolWords,
+    isInNotebook,
+    addToNotebook,
+    addManyToNotebook,
+    removeFromNotebook,
+    clearNotebook,
+    recordPractice,
+    resetPracticeStats,
+    // 设置与数据
     setTheme,
     setBatchSize,
     setSpeechEnabled,

@@ -53,6 +53,35 @@
       </div>
     </section>
 
+    <!-- ==================== 练习统计（独立于 SRS） ==================== -->
+    <section class="card chart">
+      <h3 class="section-title">练习统计</h3>
+      <p class="chart__sub">练习只记录刷题量，不影响遗忘曲线复习计划</p>
+
+      <div class="practice-grid">
+        <div class="practice-item">
+          <span class="practice-item__num">{{ practiceStats.sessions }}</span>
+          <span class="practice-item__label">练习组数</span>
+        </div>
+        <div class="practice-item">
+          <span class="practice-item__num">{{ practiceStats.answered }}</span>
+          <span class="practice-item__label">累计答题</span>
+        </div>
+        <div class="practice-item">
+          <span class="practice-item__num">{{ practiceStats.accuracy }}%</span>
+          <span class="practice-item__label">正确率</span>
+        </div>
+        <div class="practice-item">
+          <span class="practice-item__num">{{ stats.notebookCount }}</span>
+          <span class="practice-item__label">生词本</span>
+        </div>
+      </div>
+
+      <p v-if="!practiceStats.sessions" class="chart__empty">
+        还没有练习记录，去「练习」页试试吧～
+      </p>
+    </section>
+
     <!-- 没有任何学习记录时的提示 -->
     <p v-if="stats.learnedCount === 0" class="empty-hint">
       还没有学习记录，去「学新词」开始吧～
@@ -66,12 +95,13 @@
  * 1) 四个概览数字
  * 2) 单词状态分布（新词 / 学习中 / 已掌握）条形图
  * 3) 近 7 天复习活跃度（记得 / 不记得）柱状图
+ * 4) 练习统计（独立于 SRS）
  * 图表全部使用原生 div + CSS 绘制，不引入任何图表库。
  */
 import { computed } from 'vue'
 import { useStore } from '../composables/useStore'
 
-const { stats, getLast7Days } = useStore()
+const { stats, practiceStats, getLast7Days } = useStore()
 
 const last7 = computed(() => getLast7Days())
 
@@ -246,6 +276,48 @@ function barHeight(n) {
 /* 窄屏（≤360px）时概览改成 2×2，避免数字被挤换行 */
 @media (max-width: 360px) {
   .overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ---------- 练习统计 ---------- */
+.chart__sub {
+  margin: -6px 0 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.chart__empty {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: center;
+}
+.practice-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.practice-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 12px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--card-soft);
+}
+.practice-item__num {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.practice-item__label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+@media (max-width: 360px) {
+  .practice-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }

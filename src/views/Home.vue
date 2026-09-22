@@ -68,6 +68,21 @@
         <span class="entry-card__title">复习</span>
         <span class="entry-card__desc">{{ stats.dueCount }} 个待复习</span>
       </router-link>
+
+      <!-- 练习模式：横向通栏，与学习/复习区分开（不参与遗忘曲线） -->
+      <router-link to="/practice" class="entry-card entry-card--wide">
+        <span class="entry-card__icon entry-card__icon--practice">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          </svg>
+        </span>
+        <span class="entry-card__text">
+          <span class="entry-card__title">练习模式</span>
+          <span class="entry-card__desc">英译中 / 中译英 / 短句填空 · 不影响复习计划</span>
+        </span>
+      </router-link>
     </div>
 
     <!-- ==================== 遗忘曲线说明（帮助新用户理解机制） ==================== -->
@@ -283,6 +298,30 @@ const learnedPercent = computed(() => {
 .entry-card__icon--review {
   background: var(--warning-soft);
   color: var(--warning);
+}
+.entry-card__icon--practice {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+/* 通栏卡片（练习模式）：图标 + 文字横向排列 */
+.entry-card--wide {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+.entry-card--wide .entry-card__icon {
+  margin-bottom: 0;
+}
+.entry-card__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  text-align: left;
 }
 .entry-card__title {
   font-size: 16px;
