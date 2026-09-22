@@ -9,7 +9,7 @@
     @keydown.enter.prevent="onCardClick"
     @keydown.space.prevent="onCardClick"
   >
-    <!-- ============ 学习模式：一次性展示单词 / 音标 / 释义 / 例句 ============ -->
+    <!-- ============ 学习模式：默认只露单词，点按钮才显示释义与例句 ============ -->
     <div v-if="mode === 'learn'" class="wc-learn">
       <div class="wc-head">
         <span class="wc-word">{{ word.word }}</span>
@@ -23,10 +23,20 @@
         </button>
       </div>
       <p v-if="word.phonetic" class="wc-phonetic">{{ word.phonetic }}</p>
-      <p class="wc-meaning">{{ word.meaning }}</p>
-      <div v-if="word.example" class="wc-example">
-        <span>{{ word.example }}</span>
-        <span v-if="word.exampleCn" class="wc-example__cn">{{ word.exampleCn }}</span>
+
+      <!-- 未翻开：先自己回想，避免一上来就看到释义 -->
+      <div v-if="!revealed" class="wc-reveal">
+        <p class="wc-reveal__hint">先回想一下它的意思</p>
+        <button class="wc-reveal__btn" @click.stop="emit('reveal')">显示释义</button>
+      </div>
+
+      <!-- 已翻开：释义 + 例句 -->
+      <div v-else class="wc-revealed">
+        <p class="wc-meaning">{{ word.meaning }}</p>
+        <div v-if="word.example" class="wc-example">
+          <span>{{ word.example }}</span>
+          <span v-if="word.exampleCn" class="wc-example__cn">{{ word.exampleCn }}</span>
+        </div>
       </div>
     </div>
 
@@ -80,10 +90,11 @@ const props = defineProps({
   word: { type: Object, required: true },
   mode: { type: String, default: 'learn' }, // 'learn' | 'review'
   showMeaning: { type: Boolean, default: true }, // 复习模式下是否已翻面
-  clickable: { type: Boolean, default: false } // 是否允许点击翻面
+  clickable: { type: Boolean, default: false }, // 是否允许点击翻面
+  revealed: { type: Boolean, default: true } // 学习模式下释义/例句是否已显示（false 时靠按钮展开）
 })
 
-const emit = defineEmits(['flip'])
+const emit = defineEmits(['flip', 'reveal'])
 
 const { state } = useStore()
 
@@ -143,6 +154,52 @@ function onCardClick() {
   margin: 6px 0 0;
   color: var(--muted);
   font-size: 15px;
+}
+
+/* ---------- 学习模式：未显示释义时的展开区 ---------- */
+.wc-reveal {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.wc-reveal__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.wc-reveal__btn {
+  min-height: 44px;
+  padding: 11px 24px;
+  border-radius: 13px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(79, 124, 255, 0.28);
+  transition: transform 0.15s ease;
+}
+.wc-reveal__btn:active {
+  transform: scale(0.97);
+}
+
+/* 展开后的内容淡入，避免"突然出现" */
+.wc-revealed {
+  animation: reveal-in 0.28s ease;
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .wc-meaning {

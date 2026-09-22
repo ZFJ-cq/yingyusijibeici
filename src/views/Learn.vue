@@ -49,7 +49,7 @@
         <div class="batch-bar__fill" :style="{ width: batchPercent + '%' }"></div>
       </div>
 
-      <WordCard :word="current" mode="learn" />
+      <WordCard :word="current" mode="learn" :revealed="revealed" @reveal="revealed = true" />
 
       <!-- 认识 / 不认识 -->
       <div class="actions">
@@ -116,9 +116,15 @@ const remaining = ref([]) // 待学队列（当前卡 = 队列第一项）
 const total = ref(0) // 本批总数（用于算进度）
 const known = ref(0) // 本批「认识」次数
 const unknown = ref(0) // 本批「不认识」次数
+const revealed = ref(false) // 当前卡片是否已展开释义与例句（默认隐藏，先让用户回想）
 
 /** 当前卡片 */
 const current = computed(() => remaining.value[0] || null)
+
+/** 换到下一张卡时，释义重新收起 */
+function resetReveal() {
+  revealed.value = false
+}
 
 /** 批次进度百分比 */
 const batchPercent = computed(() => {
@@ -164,6 +170,7 @@ function start() {
   known.value = 0
   unknown.value = 0
   endedEarly.value = false
+  resetReveal()
   started.value = true
   finished.value = remaining.value.length === 0
 }
@@ -174,6 +181,7 @@ function onKnown() {
   learnWord(current.value.word)
   known.value++
   remaining.value.shift()
+  resetReveal() // 下一张卡重新收起释义
   if (remaining.value.length === 0) finished.value = true
 }
 
@@ -182,6 +190,7 @@ function onUnknown() {
   if (!current.value) return
   unknown.value++
   remaining.value.push(remaining.value.shift())
+  resetReveal() // 换卡后释义也重新收起
 }
 
 /** 结束本批：中途退出，直接看本批统计 */
