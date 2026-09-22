@@ -39,7 +39,7 @@
       </div>
       <div class="progress__meta">
         <span>学习中 {{ stats.learningCount }}</span>
-        <span>已掌握 {{ stats.masteredCount }}</span>
+        <span>今日已复习 {{ stats.todayReviews }}</span>
       </div>
     </section>
 
@@ -88,7 +88,7 @@ import { useRouter } from 'vue-router'
 import { useStore } from '../composables/useStore'
 
 const router = useRouter()
-const { stats, state, getNewWords } = useStore()
+const { stats, state } = useStore()
 
 /* 根据当前时间给出问候语 */
 const greeting = computed(() => {
@@ -125,11 +125,9 @@ function heroGo() {
   router.push(stats.value.dueCount > 0 ? '/review' : '/learn')
 }
 
-/* 本次最多可学的新词数（受"每次学习数量"设置限制） */
-const learnableCount = computed(() => {
-  const available = getNewWords().length
-  return Math.min(available, state.settings.batchSize)
-})
+/* 本次最多可学的新词数（受"每次学习数量"设置限制）
+   直接用 stats.newCount：避免为了取长度而过滤 + 洗牌整个词库 */
+const learnableCount = computed(() => Math.min(stats.value.newCount, state.settings.batchSize))
 
 /* 总体进度百分比 */
 const learnedPercent = computed(() => {

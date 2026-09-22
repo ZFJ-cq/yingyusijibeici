@@ -75,7 +75,7 @@ const { stats, getLast7Days } = useStore()
 
 const last7 = computed(() => getLast7Days())
 
-/** 状态分布数据：宽度按占词库总量的比例计算（留 2% 最小可见宽度） */
+/** 状态分布数据：宽度按占词库总量的比例计算；0 个不画条，非 0 保留 2% 最小可见宽度 */
 const distribution = computed(() => {
   const total = stats.value.totalWords || 1
   const rows = [
@@ -85,7 +85,8 @@ const distribution = computed(() => {
   ]
   return rows.map((r) => ({
     ...r,
-    width: Math.max(2, Math.round((r.value / total) * 100)) + '%'
+    // 修复：0 个时此前也会画出 2% 的小色条，看起来像"有数据"
+    width: r.value === 0 ? '0%' : Math.max(2, Math.round((r.value / total) * 100)) + '%'
   }))
 })
 

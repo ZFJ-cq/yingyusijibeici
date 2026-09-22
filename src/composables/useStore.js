@@ -110,8 +110,11 @@ function applyOrder(list) {
 
 /**
  * 学新词【认识】：进入复习计划，第 1 次复习安排在 1 天后
+ * 幂等保护：已有进度的词直接返回，避免重复初始化把已有复习记录覆盖掉。
  */
 function learnWord(word) {
+  if (state.progress[word]) return
+
   state.progress[word] = {
     state: 'learning',
     learnedAt: now(),
@@ -130,7 +133,8 @@ function learnWord(word) {
  */
 function reviewRemember(word) {
   const p = state.progress[word]
-  if (!p) return
+  // 已掌握的词不该再进入复习；一并挡住，避免 reviewsDone 越界
+  if (!p || p.state === 'mastered') return
 
   p.reviewsDone += 1
   p.lastReviewAt = now()
@@ -140,7 +144,9 @@ function reviewRemember(word) {
     p.state = 'mastered'
     p.nextReviewAt = null // 已掌握，不再安排复习
   } else {
-    p.nextReviewAt = now() + REVIEW_INTERVALS[p.reviewsDone] * DAY
+    // 防御性兜底：万一下标取不到（异常数据），退回最后一个间隔而不是产生 NaN
+    const days = REVIEW_INTERVALS[p.reviewsDone] ?? REVIEW_INTERVALS[REVIEW_INTERVALS.length - 1]
+    p.nextReviewAt = now() + days * DAY
   }
 }
 
@@ -224,8 +230,14 @@ const stats = computed(() => {
   let totalReviews = 0 // 累计复习次数
   let rememberCount = 0 // 记得次数
   let forgetCount = 0 // 不记得次数
+  let todayReviews = 0 // 今日复习次数（自然日 00:00 起算）
 
   const t = now()
+  // 今天的 0 点，用于统计"今日活跃度"
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const todayT = todayStart.getTime()
+
   for (const w of WORDS) {
     const p = state.progress[w.word]
     if (!p) {
@@ -242,6 +254,7 @@ const stats = computed(() => {
       totalReviews++
       if (h.result === 'remember') rememberCount++
       else forgetCount++
+      if (h.t >= todayT) todayReviews++
     }
   }
 
@@ -254,7 +267,8 @@ const stats = computed(() => {
     learnedCount: learningCount + masteredCount,
     totalReviews,
     rememberCount,
-    forgetCount
+    forgetCount,
+    todayReviews
   }
 })
 
@@ -287,7 +301,15 @@ function setOrder(order) {
 
 /** 导出备份：把整个 state 序列化成 JSON 字符串 */
 function exportData() {
-  return JSON.stringify(state, null, 2)
+  // 只导出当前词库中真实存在的单词。
+  // 若曾换过词库，progress 里可能残留旧词书的"幽灵记录"，
+  // 它们不参与统计、也复习不到，过滤掉能让备份文件更干净。
+  const valid = new Set(WORDS.map((w) => w.word))
+  const progress = {}
+  for (const [word, record] of Object.entries(state.progress)) {
+    if (valid.has(word)) progress[word] = record
+  }
+  return JSON.stringify({ version: state.version, settings: state.settings, progress }, null, 2)
 }
 
 /** 导入备份：解析后覆盖当前设置与进度（字段缺失时用默认值补齐） */

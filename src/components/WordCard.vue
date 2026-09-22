@@ -1,5 +1,14 @@
 <template>
-  <div class="word-card" :class="{ 'word-card--clickable': clickable }" @click="onCardClick">
+  <div
+    class="word-card"
+    :class="{ 'word-card--clickable': clickable }"
+    :role="clickable ? 'button' : null"
+    :tabindex="clickable ? 0 : null"
+    :aria-label="clickable ? `翻转卡片查看 ${word.word} 的释义` : null"
+    @click="onCardClick"
+    @keydown.enter.prevent="onCardClick"
+    @keydown.space.prevent="onCardClick"
+  >
     <!-- ============ 学习模式：一次性展示单词 / 音标 / 释义 / 例句 ============ -->
     <div v-if="mode === 'learn'" class="wc-learn">
       <div class="wc-head">
@@ -104,6 +113,12 @@ function onCardClick() {
 
 .word-card--clickable {
   cursor: pointer;
+}
+
+/* 键盘聚焦时的可见焦点环（可访问性） */
+.word-card--clickable:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
 }
 
 /* ---------- 单词 ---------- */

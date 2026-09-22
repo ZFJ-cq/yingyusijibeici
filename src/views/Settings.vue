@@ -158,8 +158,11 @@
  * 设置页
  * 外观 / 学习偏好 / 数据备份与重置 / 关于
  * 所有设置项直接写入 useStore 的 state，由 watch 自动持久化到 localStorage。
+ * 提示与确认统一走 useUI（应用内 Toast + 弹窗），不使用原生 alert/confirm：
+ * 原生弹窗样式割裂，且在 iOS 独立运行等环境下可能被忽略导致操作静默失效。
  */
 import { useStore } from '../composables/useStore'
+import { useUI } from '../composables/useUI'
 
 const {
   state,
@@ -173,6 +176,8 @@ const {
   importData,
   resetProgress
 } = useStore()
+
+const { toast, confirmDialog } = useUI()
 
 /** 输入数量后立即回写钳制结果，避免出现 0 或超范围的值 */
 function onBatchChange(e) {
@@ -202,22 +207,26 @@ function onImport(e) {
   reader.onload = () => {
     try {
       importData(reader.result)
-      window.alert('导入成功，学习记录已恢复。')
+      toast('导入成功，学习记录已恢复')
     } catch (err) {
-      window.alert('导入失败：文件格式不正确。')
+      toast('导入失败：文件格式不正确')
     }
     e.target.value = '' // 允许重复选择同一文件
   }
   reader.readAsText(file)
 }
 
-/** 重置：二次确认后清空进度 */
-function onReset() {
-  const ok = window.confirm('确定重置所有学习记录吗？此操作不可撤销（建议先导出备份）。')
-  if (ok) {
-    resetProgress()
-    window.alert('学习记录已重置。')
-  }
+/** 重置：应用内二次确认后清空进度（保留偏好设置） */
+async function onReset() {
+  const ok = await confirmDialog({
+    title: '重置学习记录',
+    message: '将清空全部单词的学习进度，主题等偏好设置会保留。此操作不可撤销，建议先导出备份。',
+    confirmText: '确认重置',
+    danger: true
+  })
+  if (!ok) return
+  resetProgress()
+  toast('学习记录已重置')
 }
 </script>
 

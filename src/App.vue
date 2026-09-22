@@ -39,6 +39,9 @@
         </router-link>
       </div>
     </nav>
+
+    <!-- ===================== 全局 Toast / 确认弹窗 ===================== -->
+    <AppUI />
   </div>
 </template>
 
@@ -48,9 +51,11 @@
  * - 顶部标题栏：显示当前页面名（取自路由 meta.title）+ 主题切换
  * - 内容区：router-view，页面切换带淡入过渡
  * - 底部 Tab 栏：5 个主入口，App 式切换（图标来自 Feather Icons 的极简线条风格）
+ * - AppUI：全局 Toast 与确认弹窗（替代原生 alert/confirm）
  */
 import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import AppUI from './components/AppUI.vue'
 import { useStore } from './composables/useStore'
 
 const route = useRoute()
@@ -74,13 +79,19 @@ function toggleTheme() {
   setTheme(isDark.value ? 'light' : 'dark')
 }
 
+/** 主题底色（与 global.css 的 --bg 一致），用于同步移动端浏览器地址栏颜色 */
+const THEME_COLORS = { light: '#f4f7fb', dark: '#12161e' }
+
 /**
  * 把主题写到 <html data-theme="...">，global.css 里据此切换 CSS 变量。
- * 首次挂载先同步一次，之后跟随设置变化。
+ * 同时同步 <meta name="theme-color">，让移动端浏览器地址栏跟随主题。
  */
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta) meta.setAttribute('content', THEME_COLORS[theme] || THEME_COLORS.light)
 }
+
 applyTheme(state.settings.theme)
 watch(() => state.settings.theme, applyTheme)
 </script>

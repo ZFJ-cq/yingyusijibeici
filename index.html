@@ -8,13 +8,33 @@
     />
     <!-- viewport-fit=cover：让页面延伸到 iPhone 刘海/圆角区域，配合 env(safe-area-inset-*) 使用 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
-    <!-- 移动端浏览器地址栏配色（浅色/暗黑各一套） -->
-    <meta name="theme-color" content="#f4f7fb" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#12161e" media="(prefers-color-scheme: dark)" />
+    <!-- 移动端浏览器地址栏配色，初始值；切主题时由 JS 动态更新为对应色 -->
+    <meta name="theme-color" content="#f4f7fb" />
     <!-- 添加到主屏后以独立 App 形式打开（无浏览器 UI） -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>四级遗忘曲线背单词</title>
+
+    <!--
+      在 Vue 挂载前先应用已保存的主题，避免暗色用户看到白色闪屏（FOUC）。
+      这里只读 localStorage 里"已经保存过"的主题；没保存过就保持默认浅色，
+      与 useStore 里的默认设置保持一致，避免出现「先暗后亮」的反向闪烁。
+    -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('cet4_forgetting_curve_v1')
+          var theme = raw ? (JSON.parse(raw).settings || {}).theme : ''
+          if (theme === 'dark' || theme === 'light') {
+            document.documentElement.dataset.theme = theme
+            var meta = document.querySelector('meta[name="theme-color"]')
+            if (meta) meta.setAttribute('content', theme === 'dark' ? '#12161e' : '#f4f7fb')
+          }
+        } catch (e) {
+          /* 解析失败就交给 Vue 用默认值处理 */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>
