@@ -14,6 +14,16 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    assetsDir: 'assets'
+    assetsDir: 'assets',
+    // 词库数据较大，单独拆成一个 chunk，便于浏览器缓存与更新
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('src/data/words')) return 'word-data'
+          if (id.includes('node_modules')) return 'vendor'
+        }
+      }
+    }
   }
 })

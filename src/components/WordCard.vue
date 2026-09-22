@@ -6,22 +6,28 @@
         <div class="wc-word">{{ word.word }}</div>
         <button class="speak-btn" title="朗读" @click.stop="speakWord">🔊</button>
       </div>
-      <div class="wc-phonetic">{{ word.phonetic }}</div>
+      <div v-if="word.phonetic" class="wc-phonetic">{{ word.phonetic }}</div>
       <div class="wc-meaning">{{ word.meaning }}</div>
-      <div class="wc-example">{{ word.example }}</div>
+      <div v-if="word.example" class="wc-example">
+        <span>{{ word.example }}</span>
+        <span v-if="word.exampleCn" class="wc-example-cn">{{ word.exampleCn }}</span>
+      </div>
     </div>
 
     <!-- 复习模式：可翻转卡片 -->
     <div v-else class="wc-inner" :class="{ flipped: showMeaning }">
       <div class="wc-face wc-front">
         <div class="wc-word">{{ word.word }}</div>
-        <div class="wc-phonetic">{{ word.phonetic }}</div>
+        <div v-if="word.phonetic" class="wc-phonetic">{{ word.phonetic }}</div>
         <button class="speak-btn" title="朗读" @click.stop="speakWord">🔊</button>
         <div class="wc-hint">点击卡片查看释义</div>
       </div>
       <div class="wc-face wc-back">
         <div class="wc-meaning">{{ word.meaning }}</div>
-        <div class="wc-example">{{ word.example }}</div>
+        <div v-if="word.example" class="wc-example">
+          <span>{{ word.example }}</span>
+          <span v-if="word.exampleCn" class="wc-example-cn">{{ word.exampleCn }}</span>
+        </div>
         <button class="speak-btn" title="朗读" @click.stop="speakWord">🔊</button>
       </div>
     </div>
@@ -100,6 +106,13 @@ function onCardClick() {
   padding-left: 12px;
 }
 
+.wc-example-cn {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
 .speak-btn {
   background: var(--primary-soft);
   color: var(--primary);
@@ -131,11 +144,12 @@ function onCardClick() {
   -webkit-backface-visibility: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: safe center;
   align-items: center;
   text-align: center;
   padding: 20px;
   border-radius: var(--radius);
+  overflow-y: auto;
 }
 .wc-front .wc-word {
   font-size: 38px;

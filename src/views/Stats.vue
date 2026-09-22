@@ -100,7 +100,8 @@ const maxCount = computed(() => {
   return m
 })
 function barHeight(n) {
-  return Math.round((n / maxCount.value) * 100) + '%'
+  if (!n) return '0%'
+  return Math.max(4, Math.round((n / maxCount.value) * 100)) + '%'
 }
 </script>
 
@@ -200,7 +201,6 @@ function barHeight(n) {
 .week-bar {
   width: 12px;
   border-radius: 4px 4px 0 0;
-  min-height: 2px;
   transition: height 0.5s ease;
 }
 .week-bar.remember {
