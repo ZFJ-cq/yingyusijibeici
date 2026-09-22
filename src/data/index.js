@@ -35,7 +35,7 @@ function mergeLists() {
     byWord.set(w.word, { ...w, lists: ['regular'] })
   }
 
-  // 高频词表里「常规词库没有」的词：只有词形 + 释义（无音标/例句）
+  // 高频词表里「常规词库没有」的词：自带音标 / 释义 / 例句
   for (const h of HIGH_FREQ_ONLY) {
     const exist = byWord.get(h.word)
     if (exist) {
@@ -44,10 +44,10 @@ function mergeLists() {
     } else {
       byWord.set(h.word, {
         word: h.word,
-        phonetic: '',
+        phonetic: h.phonetic || '',
         meaning: h.meaning,
-        example: '',
-        exampleCn: '',
+        example: h.example || '',
+        exampleCn: h.exampleCn || '',
         lists: ['high']
       })
     }

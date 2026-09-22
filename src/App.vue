@@ -61,15 +61,20 @@
  * - 内容区：router-view，页面切换带淡入过渡
  * - 底部 Tab 栏：5 个主入口，App 式切换（图标来自 Feather Icons 的极简线条风格）
  * - AppUI：全局 Toast 与确认弹窗（替代原生 alert/confirm）
+ * - useStudyTimer：全局学习时长计时（整个应用只挂载一次）
  */
 import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppUI from './components/AppUI.vue'
 import { useStore } from './composables/useStore'
+import { useStudyTimer } from './composables/useStudyTimer'
 
 const route = useRoute()
 const router = useRouter()
 const { state, setTheme } = useStore()
+
+// 全局学习时长计时：只在 App 挂一次，避免重复累加
+useStudyTimer()
 
 /* 底部 Tab 定义：icon 为若干条 SVG 路径（d 属性）
    注意：「学新词」不占 Tab，它从首页看板的入口进入（详情页形式，带返回按钮） */

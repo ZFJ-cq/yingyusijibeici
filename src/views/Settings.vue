@@ -147,6 +147,16 @@
 
       <div class="row">
         <div class="row__main">
+          <span class="row__title">清空学习时长</span>
+          <span class="row__desc">
+            今日与累计时长归零（当前累计 {{ formatDuration(studyStats.totalSeconds) }}）
+          </span>
+        </div>
+        <button class="btn btn-ghost btn--compact" @click="onResetStudyTime">清空</button>
+      </div>
+
+      <div class="row">
+        <div class="row__main">
           <span class="row__title row__title--danger">重置学习记录</span>
           <span class="row__desc">清空单词进度（保留偏好设置）</span>
         </div>
@@ -179,10 +189,12 @@
  */
 import { useStore } from '../composables/useStore'
 import { useUI } from '../composables/useUI'
+import { formatDuration } from '../utils/format'
 
 const {
   state,
   stats,
+  studyStats,
   setTheme,
   setBatchSize,
   setSpeechEnabled,
@@ -192,7 +204,8 @@ const {
   importData,
   resetProgress,
   clearNotebook,
-  resetPracticeStats
+  resetPracticeStats,
+  resetStudyTime
 } = useStore()
 
 const { toast, confirmDialog } = useUI()
@@ -274,6 +287,18 @@ async function onResetPractice() {
   if (!ok) return
   resetPracticeStats()
   toast('练习统计已重置')
+}
+
+/** 清空学习时长（不影响单词进度） */
+async function onResetStudyTime() {
+  const ok = await confirmDialog({
+    title: '清空学习时长',
+    message: `将把今日与累计时长（当前累计 ${formatDuration(studyStats.value.totalSeconds)}）归零。单词进度与复习计划不受影响。`,
+    confirmText: '清空'
+  })
+  if (!ok) return
+  resetStudyTime()
+  toast('学习时长已清空')
 }
 </script>
 

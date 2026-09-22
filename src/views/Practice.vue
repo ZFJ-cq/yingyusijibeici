@@ -67,6 +67,26 @@
           </button>
         </div>
 
+        <!-- 蒙版遮挡：可选遮挡哪一面 -->
+        <div v-if="type === 'mask'" class="sub-config">
+          <span class="sub-config__label">遮挡方式</span>
+          <div class="chips">
+            <button
+              v-for="s in maskSides"
+              :key="s.key"
+              class="chip"
+              :class="{ 'chip--active': maskSide === s.key }"
+              @click="maskSide = s.key"
+            >
+              {{ s.name }}
+            </button>
+          </div>
+        </div>
+        <p v-else-if="type === 'mixed'" class="type-hint">
+          混合会随机出「英译中 / 中译英 / 短句填空 / 默写填空」，这几种都需要打字作答；
+          想练「蒙版遮挡」请单独选择该题型。
+        </p>
+
         <button class="btn btn-primary btn-block start-btn" :disabled="!canStart" @click="start">
           {{ canStart ? `开始练习（${count} 题）` : '该词池暂无可练单词' }}
         </button>
@@ -130,41 +150,130 @@
         <p class="quiz__ask">请填写对应的英文单词</p>
       </div>
 
-      <!-- 短句填空：给挖空例句 -->
-      <div v-else class="quiz__prompt">
+      <!-- 短句填空：给挖空例句 + 括号里的原形提示 -->
+      <div v-else-if="current.type === 'cloze'" class="quiz__prompt">
         <p class="quiz__sentence">{{ current.sentence }}</p>
         <p class="quiz__hint">提示：{{ current.hint }}</p>
         <p class="quiz__ask">请补全句子中空缺的单词</p>
       </div>
 
-      <!-- 作答区 -->
-      <div class="answer">
-        <input
-          ref="inputEl"
-          v-model="userInput"
-          class="answer__input"
-          :class="inputClass"
-          type="text"
-          autocapitalize="off"
-          autocomplete="off"
-          spellcheck="false"
-          :placeholder="placeholder"
-          :disabled="answered"
-          @keydown.enter.prevent="onEnter"
-        />
+      <!-- 默写填空：给中文释义 + 挖空例句，但不给原形提示（比短句填空更难） -->
+      <div v-else-if="current.type === 'dictation'" class="quiz__prompt">
+        <p class="quiz__meaning">{{ current.prompt }}</p>
+        <p class="quiz__sentence quiz__sentence--gap">{{ current.sentence }}</p>
+        <div class="quiz__ask-row">
+          <span class="quiz__ask">根据释义默写句子里缺的单词</span>
+          <!-- 听发音属于"要提示才给"的帮助，默认不点就不会泄露读音 -->
+          <button class="hint-btn" @click="speakWord(current.word)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11 5 6 9H2v6h4l5 4V5z" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+            听发音提示
+          </button>
+        </div>
+      </div>
 
-        <!-- 判分反馈 -->
-        <div v-if="answered" class="feedback" :class="feedbackClass">
-          <span class="feedback__title">{{ feedbackTitle }}</span>
-          <span class="feedback__answer">
-            正确答案：<b>{{ current.answerText }}</b>
+      <!-- 蒙版遮挡：题面正常显示，答案被蒙版盖住，点开后自评对错（不打字） -->
+      <div v-else class="quiz__prompt">
+        <!-- 遮中文：题面是英文单词 -->
+        <template v-if="current.side === 'cn'">
+          <div class="quiz__word-row">
+            <span class="quiz__word">{{ current.word }}</span>
+            <button class="speak-btn" aria-label="朗读单词" @click="speakWord(current.word)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 5 6 9H2v6h4l5 4V5z" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              </svg>
+            </button>
+          </div>
+          <p v-if="current.phonetic" class="quiz__phonetic">{{ current.phonetic }}</p>
+        </template>
+        <!-- 遮英文：题面是中文释义 -->
+        <p v-else class="quiz__meaning">{{ current.meaning }}</p>
+
+        <!-- 蒙版本体：未揭开时答案被模糊 + 斜纹盖住 -->
+        <button
+          class="mask"
+          :class="{ 'mask--open': revealed }"
+          :aria-label="revealed ? '蒙版已揭开' : '点击揭开蒙版'"
+          @click="revealMask"
+        >
+          <span class="mask__text" :class="{ 'mask__text--blurred': !revealed }" aria-hidden="true">
+            {{ current.answerText }}
           </span>
-          <span v-if="feedbackExtra" class="feedback__extra">{{ feedbackExtra }}</span>
+          <span v-if="!revealed" class="mask__cover">
+            <span class="mask__badge">点击揭开蒙版</span>
+          </span>
+        </button>
+
+        <!-- 遮英文时，揭开后补上音标与朗读 -->
+        <div v-if="current.side === 'en' && revealed" class="quiz__reveal-row">
+          <span v-if="current.phonetic" class="quiz__phonetic">{{ current.phonetic }}</span>
+          <button class="speak-btn" aria-label="朗读单词" @click="speakWord(current.word)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11 5 6 9H2v6h4l5 4V5z" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            </svg>
+          </button>
         </div>
 
-        <button class="btn btn-primary btn-block" @click="onPrimary">
-          {{ primaryLabel }}
-        </button>
+        <p class="quiz__ask">
+          {{ revealed ? '对照一下你刚才想的，然后如实自评（自评结果不影响遗忘曲线）' : '先在心里回忆一遍，再揭开蒙版核对' }}
+        </p>
+      </div>
+
+      <!-- 作答区 -->
+      <div class="answer">
+        <!-- 蒙版遮挡：不需要打字，揭开蒙版后由自己如实评价 -->
+        <template v-if="current.type === 'mask'">
+          <button v-if="!revealed" class="btn btn-primary btn-block" @click="revealMask">
+            揭开蒙版
+          </button>
+          <div v-else class="assess">
+            <button class="btn btn-ghost assess__item assess__item--bad" @click="selfAssess(false)">
+              没记住
+            </button>
+            <button class="btn btn-primary assess__item" @click="selfAssess(true)">
+              记住了
+            </button>
+          </div>
+        </template>
+
+        <!-- 其余四种题型：打字作答 + 自动判分 -->
+        <template v-else>
+          <input
+            ref="inputEl"
+            v-model="userInput"
+            class="answer__input"
+            :class="inputClass"
+            type="text"
+            autocapitalize="off"
+            autocomplete="off"
+            spellcheck="false"
+            :placeholder="placeholder"
+            :disabled="answered"
+            @keydown.enter.prevent="onEnter"
+          />
+
+          <!-- 判分反馈 -->
+          <div v-if="answered" class="feedback" :class="feedbackClass">
+            <span class="feedback__title">{{ feedbackTitle }}</span>
+            <span class="feedback__answer">
+              正确答案：<b>{{ current.answerText }}</b>
+            </span>
+            <span v-if="feedbackExtra" class="feedback__extra">{{ feedbackExtra }}</span>
+          </div>
+
+          <button class="btn btn-primary btn-block" @click="onPrimary">
+            {{ primaryLabel }}
+          </button>
+        </template>
       </div>
     </section>
 
@@ -240,12 +349,14 @@
 /**
  * 练习模式
  * ----------------------------------------------------------------------------
- * 三种题型：英译中 / 中译英 / 短句填空（可混合）。
+ * 五种题型（可混合前四种）：
+ *   英译中 / 中译英 / 短句填空（给原形提示）/ 默写填空（不给提示）/ 蒙版遮挡（自评）
  * 词池：全部 / 待复习 / 已掌握 / 生词本；题量：5 / 10 / 20 / 自定义。
  * 结果页汇总正确率与错题，错题可一键加入生词本。
  *
  * ⚠️ 本页面只读取 progress（用于筛词池），**从不写入** progress。
  *    练习答错不会改变任何单词的遗忘曲线复习时间（SRS）。
+ *    蒙版遮挡由用户自评，同样只进本页统计，不写 SRS。
  */
 import { ref, computed, watch, nextTick } from 'vue'
 import { useStore } from '../composables/useStore'
@@ -276,13 +387,22 @@ const typeOptions = [
   { key: 'mixed', name: '混合（推荐）' },
   { key: 'en2cn', name: '英译中' },
   { key: 'cn2en', name: '中译英' },
-  { key: 'cloze', name: '短句填空' }
+  { key: 'cloze', name: '短句填空' },
+  { key: 'dictation', name: '默写填空' },
+  { key: 'mask', name: '蒙版遮挡' }
+]
+
+/** 蒙版遮挡：遮挡哪一面（看词猜义 / 看义想词） */
+const maskSides = [
+  { key: 'cn', name: '遮中文（看词猜义）' },
+  { key: 'en', name: '遮英文（看义想词）' }
 ]
 
 const pool = ref('all')
 const countMode = ref(10) // 5 | 10 | 20 | 'custom'
 const customCount = ref(30)
 const type = ref('mixed')
+const maskSide = ref('cn') // 'cn' | 'en'
 
 /** 最终题量 */
 const count = computed(() => {
@@ -309,6 +429,7 @@ const questions = ref([])
 const index = ref(0)
 const userInput = ref('')
 const answered = ref(false)
+const revealed = ref(false) // 蒙版遮挡：蒙版是否已揭开
 const currentResult = ref(null)
 const records = ref([]) // 每题作答记录
 const inputEl = ref(null)
@@ -320,9 +441,13 @@ const wrongList = computed(() => records.value.filter((r) => !r.correct))
 const accuracy = computed(() =>
   records.value.length ? Math.round((correctCount.value / records.value.length) * 100) : 0
 )
-const progressPercent = computed(() =>
-  questions.value.length ? Math.round(((index.value + (answered.value ? 1 : 0)) / questions.value.length) * 100) : 0
-)
+const progressPercent = computed(() => {
+  const total = questions.value.length
+  if (!total) return 0
+  // 蒙版遮挡用「是否已揭开」当作本步已完成
+  const done = index.value + (answered.value || revealed.value ? 1 : 0)
+  return Math.round((done / total) * 100)
+})
 
 const placeholder = computed(() => {
   if (!current.value) return ''
@@ -363,9 +488,10 @@ function typeLabel(t) {
 
 /** 错题列表里展示的题目文本 */
 function questionText(r) {
-  if (r.type === 'en2cn') return r.prompt
-  if (r.type === 'cn2en') return r.prompt
-  return r.sentence
+  if (r.type === 'mask') return r.side === 'en' ? r.meaning : r.word
+  if (r.type === 'cloze') return r.sentence
+  if (r.type === 'dictation') return `${r.prompt} ｜ ${r.sentence}`
+  return r.prompt // en2cn / cn2en
 }
 
 function speakWord(text) {
@@ -379,9 +505,9 @@ function start() {
     toast('该词池暂无单词')
     return
   }
-  const list = buildQuestions({ words, count: count.value, type: type.value })
+  const list = buildQuestions({ words, count: count.value, type: type.value, maskSide: maskSide.value })
   if (!list.length) {
-    toast('该词池里没有可出此题型（需含例句）的单词')
+    toast('该词池里没有可出此题型（需要例句）的单词，换个题型或词池试试')
     return
   }
   questions.value = list
@@ -395,6 +521,7 @@ function start() {
 function resetAnswer() {
   userInput.value = ''
   answered.value = false
+  revealed.value = false
   currentResult.value = null
 }
 
@@ -421,6 +548,34 @@ function submit() {
     correct: result.correct,
     near: !!result.near
   })
+}
+
+/* ---------------- 蒙版遮挡（自评题型） ---------------- */
+
+/** 揭开蒙版：只改本地显示状态，不产生任何记录 */
+function revealMask() {
+  revealed.value = true
+}
+
+/**
+ * 自评对错并进入下一题
+ * 蒙版遮挡没有客观答案可判，由用户如实评价；
+ * 记录同样只写进本次练习的结果（不碰 SRS）。
+ */
+function selfAssess(ok) {
+  const q = current.value
+  if (!q) return
+  records.value.push({
+    type: q.type,
+    word: q.word,
+    meaning: q.meaning,
+    side: q.side,
+    answerText: q.answerText,
+    input: ok ? '记住了' : '没记住',
+    correct: !!ok,
+    selfAssessed: true
+  })
+  next()
 }
 
 /** 下一题 / 结束 */
@@ -539,6 +694,28 @@ watch([index, phase], async () => {
 .chip-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* 题型下方的补充配置（蒙版遮挡的遮挡方向） */
+.sub-config {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--card-soft);
+  border: 1px solid var(--border);
+}
+.sub-config__label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.type-hint {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
 }
 
 .start-btn {
@@ -687,6 +864,12 @@ watch([index, phase], async () => {
   font-size: 17px;
   line-height: 1.75;
 }
+/* 默写填空：句子跟在中英释义下面，留点间距 */
+.quiz__sentence--gap {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
 .quiz__hint {
   margin: 8px 0 0;
   font-size: 13px;
@@ -696,6 +879,116 @@ watch([index, phase], async () => {
   margin: 10px 0 0;
   font-size: 12.5px;
   color: var(--muted);
+}
+/* 说明文字 + 右侧小按钮（听发音提示）同行 */
+.quiz__ask-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.quiz__ask-row .quiz__ask {
+  margin: 10px 0 0;
+}
+.hint-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: var(--card-soft);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.16s ease;
+}
+.hint-btn:active {
+  transform: scale(0.95);
+}
+.hint-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- 蒙版遮挡 ---------- */
+.mask {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 84px;
+  margin-top: 14px;
+  padding: 20px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--card-soft);
+  overflow: hidden;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.mask--open {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.mask__text {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.55;
+  color: var(--text);
+  word-break: break-word;
+}
+/* 未揭开：答案被模糊，看不出内容 */
+.mask__text--blurred {
+  filter: blur(11px);
+  opacity: 0.55;
+  user-select: none;
+}
+/* 斜纹蒙版层盖在模糊的答案上 */
+.mask__cover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--card-soft) 0 9px,
+    var(--bg) 9px 18px
+  );
+}
+.mask__badge {
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.quiz__reveal-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.quiz__reveal-row .quiz__phonetic {
+  margin: 0;
+}
+
+/* 自评按钮（蒙版遮挡） */
+.assess {
+  display: flex;
+  gap: 12px;
+}
+.assess__item {
+  flex: 1;
+}
+.assess__item--bad {
+  border: 1.5px solid var(--danger);
+  color: var(--danger);
 }
 
 .speak-btn {

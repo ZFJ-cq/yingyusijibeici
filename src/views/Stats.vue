@@ -1,28 +1,40 @@
 <template>
   <div class="page stats">
-    <!-- ==================== 概览数字 ==================== -->
-    <div class="overview">
-      <div class="overview__item">
-        <span class="overview__num">{{ stats.totalWords }}</span>
-        <span class="overview__label">词库总量</span>
+    <!-- ==================== 学习概览 ==================== -->
+    <section class="card overview-card">
+      <h3 class="section-title">学习概览</h3>
+
+      <div class="overview">
+        <div class="overview__item">
+          <span class="overview__num">{{ stats.todayLearned }}<i class="overview__unit">词</i></span>
+          <span class="overview__label">今日学习</span>
+        </div>
+        <div class="overview__item">
+          <span class="overview__num">{{ stats.learnedCount }}<i class="overview__unit">词</i></span>
+          <span class="overview__label">累计学习</span>
+        </div>
+        <div class="overview__item">
+          <span class="overview__num overview__num--time">{{ formatDuration(studyStats.todaySeconds) }}</span>
+          <span class="overview__label">今日时长</span>
+        </div>
+        <div class="overview__item">
+          <span class="overview__num overview__num--time">{{ formatDuration(studyStats.totalSeconds) }}</span>
+          <span class="overview__label">累计时长</span>
+        </div>
       </div>
-      <div class="overview__item">
-        <span class="overview__num">{{ stats.learnedCount }}</span>
-        <span class="overview__label">已学习</span>
-      </div>
-      <div class="overview__item">
-        <span class="overview__num">{{ stats.masteredCount }}</span>
-        <span class="overview__label">已掌握</span>
-      </div>
-      <div class="overview__item">
-        <span class="overview__num">{{ stats.totalReviews }}</span>
-        <span class="overview__label">累计复习</span>
-      </div>
-    </div>
+
+      <p class="overview-card__note">
+        今日学习＝今天新学或复习过的单词数；时长按「有操作」统计，连续 1 分钟无操作会自动暂停，
+        不计入挂机时间。
+      </p>
+    </section>
 
     <!-- ==================== 单词状态分布 ==================== -->
     <section class="card chart">
       <h3 class="section-title">单词状态分布</h3>
+      <p class="chart__sub">
+        词库共 {{ stats.totalWords }} 词（常规 {{ stats.listSizes.regular }} · 高频 {{ stats.listSizes.high }}）
+      </p>
 
       <div class="bar-row" v-for="row in distribution" :key="row.key">
         <span class="bar-row__name">{{ row.name }}</span>
@@ -50,6 +62,7 @@
       <div class="legend">
         <span><i class="legend__dot legend__dot--remember"></i>记得 {{ stats.rememberCount }}</span>
         <span><i class="legend__dot legend__dot--forget"></i>不记得 {{ stats.forgetCount }}</span>
+        <span>累计复习 {{ stats.totalReviews }} 次</span>
       </div>
     </section>
 
@@ -92,7 +105,7 @@
 <script setup>
 /**
  * 统计页
- * 1) 四个概览数字
+ * 1) 学习概览（今日学习 / 累计学习 / 今日时长 / 累计时长）
  * 2) 单词状态分布（新词 / 学习中 / 已掌握）条形图
  * 3) 近 7 天复习活跃度（记得 / 不记得）柱状图
  * 4) 练习统计（独立于 SRS）
@@ -100,8 +113,9 @@
  */
 import { computed } from 'vue'
 import { useStore } from '../composables/useStore'
+import { formatDuration } from '../utils/format'
 
-const { stats, practiceStats, getLast7Days } = useStore()
+const { stats, practiceStats, studyStats, getLast7Days } = useStore()
 
 const last7 = computed(() => getLast7Days())
 
@@ -135,30 +149,53 @@ function barHeight(n) {
 </script>
 
 <style scoped>
-/* ---------- 概览 ---------- */
-.overview {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+/* ---------- 学习概览 ---------- */
+.overview-card {
   margin-bottom: 14px;
 }
+.overview-card .section-title {
+  margin-top: 0;
+}
+.overview {
+  display: grid;
+  /* 2×2：数字较大、还有"1小时2分"这类较长的值，两列比四列稳 */
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
 .overview__item {
-  background: var(--card);
+  background: var(--card-soft);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
-  padding: 14px 6px;
+  padding: 13px 10px;
   display: flex;
   flex-direction: column;
   gap: 3px;
   text-align: center;
 }
 .overview__num {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1.15;
+  color: var(--primary);
+}
+/* 时长是"1小时2分"这类文本，字要小一号才放得下 */
+.overview__num--time {
+  font-size: 19px;
+}
+.overview__unit {
+  margin-left: 3px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--muted);
 }
 .overview__label {
-  font-size: 11px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.overview-card__note {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  line-height: 1.7;
   color: var(--muted);
 }
 
@@ -254,7 +291,8 @@ function barHeight(n) {
 /* ---------- 图例 ---------- */
 .legend {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 6px 16px;
   margin-top: 14px;
   font-size: 12px;
   color: var(--muted);
@@ -273,10 +311,13 @@ function barHeight(n) {
   background: var(--danger);
 }
 
-/* 窄屏（≤360px）时概览改成 2×2，避免数字被挤换行 */
+/* 窄屏（≤360px）时概览纵向排一行，避免"1小时20分"被挤换行 */
 @media (max-width: 360px) {
-  .overview {
-    grid-template-columns: repeat(2, 1fr);
+  .overview__num {
+    font-size: 21px;
+  }
+  .overview__num--time {
+    font-size: 17px;
   }
 }
 

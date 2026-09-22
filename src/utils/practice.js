@@ -1,10 +1,12 @@
 /**
  * 练习模式引擎（纯函数，不依赖 Vue，便于单独验证）
  * ----------------------------------------------------------------------------
- * 三种题型：
- *   en2cn  英译中：展示英文单词 → 填写中文释义
- *   cn2en  中译英：展示中文释义 → 填写英文单词（大小写忽略 + 拼写容错）
- *   cloze  短句填空：挖空例句中的目标单词 → 补全句子
+ * 五种题型：
+ *   en2cn     英译中：展示英文单词 → 填写中文释义
+ *   cn2en     中译英：展示中文释义 → 填写英文单词（大小写忽略 + 拼写容错）
+ *   cloze     短句填空：挖空例句中的目标单词 → 补全句子（给原形提示）
+ *   dictation 默写填空：给中文释义 + 挖空例句（**不给提示词**）→ 默写单词（可选听发音）
+ *   mask      蒙版遮挡：题面 + 释义蒙版，先自己回忆，揭开蒙版核对后自评对错（不打字）
  *
  * ⚠️ 本模块只负责"出题 / 判分"，不读写任何 SRS（遗忘曲线）数据。
  *    练习答错不会影响复习时间戳，这是练习模式的硬约束。
@@ -159,6 +161,14 @@ export function canCloze(wordObj) {
   return buildCloze(wordObj) !== null
 }
 
+/**
+ * 默写填空同样依赖"例句里有原形"，可用范围与短句填空一致。
+ * 区别只在于：默写填空**不给**括号里的原形提示，难度更高。
+ */
+export function canDictation(wordObj) {
+  return buildCloze(wordObj) !== null
+}
+
 /** Fisher-Yates 洗牌（返回新数组） */
 export function shuffle(list) {
   const arr = list.slice()
@@ -169,20 +179,27 @@ export function shuffle(list) {
   return arr
 }
 
+/** 需要打字的题型（混合模式从这里随机） */
+export const TYPING_TYPES = ['en2cn', 'cn2en', 'cloze', 'dictation']
+
 /**
  * 组装单道题目
  * @param {object} w 单词对象 { word, phonetic, meaning, example, exampleCn }
- * @param {'mixed'|'en2cn'|'cn2en'|'cloze'} type 题型
+ * @param {'mixed'|'en2cn'|'cn2en'|'cloze'|'dictation'|'mask'} type 题型
+ * @param {'cn'|'en'} maskSide 蒙版遮挡的方向：'cn' 遮中文（看词猜义）| 'en' 遮英文（看义想词）
  */
-function makeQuestion(w, type) {
+function makeQuestion(w, type, maskSide = 'cn') {
   let t = type
 
-  // 混合模式：在"可出的题型"里随机，有例句才可能出短句填空
+  // 混合模式：在"可出且有例句"的题型里随机
   if (t === 'mixed') {
-    const options = ['en2cn', 'cn2en']
+    const options = ['en2cn', 'cn2en', 'dictation']
     if (canCloze(w)) options.push('cloze')
     t = options[Math.floor(Math.random() * options.length)]
   }
+
+  // 默写填空：万一没有可用例句，退化成中译英（只给中文释义），避免出空题
+  if (t === 'dictation' && !canDictation(w)) t = 'cn2en'
 
   if (t === 'cloze') {
     const cloze = buildCloze(w)
@@ -199,6 +216,19 @@ function makeQuestion(w, type) {
     }
   }
 
+  if (t === 'dictation') {
+    const cloze = buildCloze(w)
+    return {
+      word: w.word,
+      type: 'dictation',
+      sentence: cloze.sentence, // 挖空后的句子（无提示词，需自己默写）
+      prompt: stripPos(w.meaning), // 中文释义，帮助锁定是哪个词
+      answerText: w.word,
+      meaning: w.meaning,
+      phonetic: w.phonetic
+    }
+  }
+
   if (t === 'cn2en') {
     return {
       word: w.word,
@@ -207,6 +237,18 @@ function makeQuestion(w, type) {
       answerText: w.word,
       meaning: w.meaning,
       phonetic: w.phonetic
+    }
+  }
+
+  if (t === 'mask') {
+    return {
+      word: w.word,
+      type: 'mask',
+      side: maskSide, // 'cn' 遮住中文释义 | 'en' 遮住英文单词
+      meaning: w.meaning,
+      phonetic: w.phonetic,
+      // 蒙版揭开后展示的"答案"文本
+      answerText: maskSide === 'cn' ? w.meaning : w.word
     }
   }
 
@@ -222,21 +264,29 @@ function makeQuestion(w, type) {
 
 /**
  * 生成一组练习题
- * @param {{words: object[], count: number, type: string}} opts
+ * @param {{words: object[], count: number, type: string, maskSide?: string}} opts
  *        words 为已按词池筛选好的候选词
  * @returns {object[]} 题目数组
  */
-export function buildQuestions({ words, count, type = 'mixed' }) {
-  const candidates = type === 'cloze' ? words.filter(canCloze) : words
+export function buildQuestions({ words, count, type = 'mixed', maskSide = 'cn' }) {
+  // 短句填空 / 默写填空都需要例句，先筛掉出不了题的词
+  const needExample = type === 'cloze' || type === 'dictation'
+  const candidates = needExample ? words.filter(canCloze) : words
   const picked = shuffle(candidates).slice(0, Math.max(0, count))
-  return picked.map((w) => makeQuestion(w, type))
+  return picked.map((w) => makeQuestion(w, type, maskSide))
 }
 
 /**
- * 统一判分入口
+ * 统一判分入口（只处理"有客观答案"的题型）
+ * ⚠️ 蒙版遮挡（mask）没有客观答案，由用户自评，禁止走到这里：
+ *    若放任它按拼写比对，会把"看词猜义"的题静默判成"拼写对不对"，
+ *    所以这里直接抛错，让流程写错时立刻暴露，而不是安静地判错。
  * @returns {{correct:boolean, near?:boolean}} near=true 表示拼写很接近（用于给出提示语）
  */
 export function judge(question, input) {
+  if (question.type === 'mask') {
+    throw new Error('[practice] mask 题型没有客观答案，请使用自评流程，不要调用 judge()')
+  }
   if (question.type === 'en2cn') {
     return judgeMeaning(input, question.meaning)
   }
@@ -252,5 +302,7 @@ export function judge(question, input) {
 export const TYPE_LABEL = {
   en2cn: '英译中',
   cn2en: '中译英',
-  cloze: '短句填空'
+  cloze: '短句填空',
+  dictation: '默写填空',
+  mask: '蒙版遮挡'
 }

@@ -8,10 +8,11 @@ import { WORDS, getWordsByList, LIST_SIZES, DEFAULT_LIST } from '../data'
  *
  * {
  *   version: 1,
- *   settings: { theme, batchSize, speechEnabled, speechRate, order },
+ *   settings: { theme, batchSize, speechEnabled, speechRate, order, learnList },
  *   progress: { [单词]: { state, learnedAt, reviewsDone, nextReviewAt, lastReviewAt, history } },
  *   notebook: { [单词]: { addedAt } },
- *   practice: { sessions, answered, correct }
+ *   practice: { sessions, answered, correct },
+ *   study:    { totalSeconds, todayDate, todaySeconds, dailySeconds }
  * }
  *
  * progress 里只有"学过"的词才会有记录：
@@ -22,6 +23,9 @@ import { WORDS, getWordsByList, LIST_SIZES, DEFAULT_LIST } from '../data'
  * ⚠️ 关键约束：只有【复习模块】(reviewRemember / reviewForget / learnWord) 会写 progress。
  *    【练习模式】答对答错都不碰 progress，只把错题记进 notebook，
  *    因此练习不会改变任何单词的 SRS 复习时间戳。
+ *
+ * ⚠️ study 只是"学习时长"的记账（由 useStudyTimer 累加），同样是独立数据，
+ *    不参与任何 SRS 判断。
  */
 
 /** localStorage 存储键名 */
@@ -55,7 +59,9 @@ function defaultState() {
     // 生词本：{ [单词]: { addedAt } }，练习错题可一键加入，也可作为练习词池
     notebook: {},
     // 练习统计（与 SRS 完全独立，仅用于展示练习量）
-    practice: { sessions: 0, answered: 0, correct: 0 }
+    practice: { sessions: 0, answered: 0, correct: 0 },
+    // 学习时长记账：totalSeconds 累计 / todaySeconds 今日 / dailySeconds 每日明细
+    study: { totalSeconds: 0, todayDate: '', todaySeconds: 0, dailySeconds: {} }
   }
 }
 
@@ -72,7 +78,15 @@ function loadState() {
         settings: { ...def.settings, ...(parsed.settings || {}) },
         progress: parsed.progress && typeof parsed.progress === 'object' ? parsed.progress : {},
         notebook: parsed.notebook && typeof parsed.notebook === 'object' ? parsed.notebook : {},
-        practice: { ...def.practice, ...(parsed.practice || {}) }
+        practice: { ...def.practice, ...(parsed.practice || {}) },
+        study: {
+          ...def.study,
+          ...(parsed.study || {}),
+          dailySeconds:
+            parsed.study && typeof parsed.study.dailySeconds === 'object'
+              ? parsed.study.dailySeconds || {}
+              : {}
+        }
       }
     }
   } catch (e) {
@@ -100,6 +114,17 @@ watch(
 /** 取当前毫秒时间戳（统一入口，便于日后替换时间源） */
 function now() {
   return Date.now()
+}
+
+/**
+ * 本地自然日的键，形如 '2026-09-22'
+ * 用本地时区而不是 UTC：用户的"今天"应该按他所在地的零点划分
+ */
+function todayKey(ts) {
+  const d = new Date(ts == null ? now() : ts)
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
 }
 
 /**
@@ -287,6 +312,51 @@ function resetPracticeStats() {
   state.practice = { sessions: 0, answered: 0, correct: 0 }
 }
 
+/* ==========================================================================
+   学习时长记账（由 useStudyTimer 定期调用）
+   ========================================================================== */
+
+/** 每日明细只保留最近这么多天，避免 localStorage 无限增长 */
+const DAILY_KEEP_DAYS = 14
+
+/** 丢掉过期的每日明细 */
+function pruneDaily(daily) {
+  const keys = Object.keys(daily).sort()
+  while (keys.length > DAILY_KEEP_DAYS) {
+    delete daily[keys.shift()]
+  }
+}
+
+/**
+ * 累加学习时长（秒）
+ * 由 useStudyTimer 每 15 秒左右调用一次；跨天时先把昨天的今日时长归档。
+ * 只写 study 字段，与其他数据互不影响。
+ */
+function addStudySeconds(seconds) {
+  const sec = Math.max(0, Math.round(Number(seconds) || 0))
+  if (!sec) return
+
+  const key = todayKey()
+  if (state.study.todayDate !== key) {
+    // 跨天（或初次使用）：归档旧的"今日"，从 0 重新开始计今天
+    if (state.study.todayDate) {
+      state.study.dailySeconds[state.study.todayDate] = state.study.todaySeconds
+    }
+    state.study.todayDate = key
+    state.study.todaySeconds = 0
+  }
+
+  state.study.todaySeconds += sec
+  state.study.totalSeconds += sec
+  state.study.dailySeconds[key] = state.study.todaySeconds
+  pruneDaily(state.study.dailySeconds)
+}
+
+/** 清空学习时长记录 */
+function resetStudyTime() {
+  state.study = { totalSeconds: 0, todayDate: todayKey(), todaySeconds: 0, dailySeconds: {} }
+}
+
 /**
  * 近 7 天每日复习次数（用于统计页柱状图）
  * 返回 [{ label:'9/22', count, remember, forget }]，从最早到今天
@@ -332,6 +402,7 @@ const stats = computed(() => {
   let rememberCount = 0 // 记得次数
   let forgetCount = 0 // 不记得次数
   let todayReviews = 0 // 今日复习次数（自然日 00:00 起算）
+  let todayLearned = 0 // 今日学习词数（今天新学或复习过的去重词数）
   const newCountByList = { regular: 0, high: 0 }
 
   const t = now()
@@ -361,6 +432,9 @@ const stats = computed(() => {
       else forgetCount++
       if (h.t >= todayT) todayReviews++
     }
+    // 今天"碰过"这个词就算今天学过：新学时间或最近复习时间落在今天
+    const reviewedToday = p.lastReviewAt != null && p.lastReviewAt >= todayT
+    if (p.learnedAt >= todayT || reviewedToday) todayLearned++
   }
 
   return {
@@ -374,6 +448,7 @@ const stats = computed(() => {
     rememberCount,
     forgetCount,
     todayReviews,
+    todayLearned, // 今日学习词数（新学 + 复习去重）
     notebookCount: Object.keys(state.notebook).length, // 生词本词数
     // 各词书的总词数与未学数（供「学新词」页选择词书时展示）
     listSizes: { ...LIST_SIZES },
@@ -390,6 +465,23 @@ const practiceStats = computed(() => {
     correct: p.correct,
     wrong: Math.max(0, p.answered - p.correct),
     accuracy: p.answered ? Math.round((p.correct / p.answered) * 100) : 0
+  }
+})
+
+/**
+ * 学习时长统计
+ * 注意"今日"要按当前自然日重算：进程里可能还留着昨天写下的 todaySeconds
+ * （用户跨过零点继续用，或很久没操作后重新打开页面）。
+ */
+const studyStats = computed(() => {
+  const s = state.study
+  const key = todayKey()
+  const sameDay = s.todayDate === key
+  return {
+    todaySeconds: sameDay ? s.todaySeconds : 0,
+    totalSeconds: s.totalSeconds,
+    dailySeconds: { ...s.dailySeconds },
+    todayDate: key
   }
 })
 
@@ -444,14 +536,15 @@ function exportData() {
       settings: state.settings,
       progress: pick(state.progress),
       notebook: pick(state.notebook),
-      practice: state.practice
+      practice: state.practice,
+      study: state.study
     },
     null,
     2
   )
 }
 
-/** 导入备份：解析后覆盖当前设置、进度、生词本与练习统计（字段缺失时用默认值补齐） */
+/** 导入备份：解析后覆盖当前设置、进度、生词本、练习统计与学习时长（字段缺失时用默认值补齐） */
 function importData(jsonString) {
   const parsed = JSON.parse(jsonString)
   const next = defaultState()
@@ -460,11 +553,18 @@ function importData(jsonString) {
     next.progress = parsed.progress && typeof parsed.progress === 'object' ? parsed.progress : {}
     next.notebook = parsed.notebook && typeof parsed.notebook === 'object' ? parsed.notebook : {}
     next.practice = { ...next.practice, ...(parsed.practice || {}) }
+    next.study = {
+      ...next.study,
+      ...(parsed.study || {}),
+      dailySeconds:
+        parsed.study && typeof parsed.study.dailySeconds === 'object' ? parsed.study.dailySeconds || {} : {}
+    }
   }
   state.settings = next.settings
   state.progress = next.progress
   state.notebook = next.notebook
   state.practice = next.practice
+  state.study = next.study
 }
 
 /** 重置学习记录（清空所有单词进度，保留主题等偏好设置） */
@@ -478,6 +578,7 @@ export function useStore() {
     state,
     stats,
     practiceStats,
+    studyStats,
     REVIEW_INTERVALS,
     // 学习 / 复习（会写 SRS）
     learnWord,
@@ -496,6 +597,9 @@ export function useStore() {
     clearNotebook,
     recordPractice,
     resetPracticeStats,
+    // 学习时长记账
+    addStudySeconds,
+    resetStudyTime,
     // 设置与数据
     setTheme,
     setBatchSize,
