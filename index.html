@@ -10,7 +10,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
     <!-- 移动端浏览器地址栏配色，初始值；切主题时由 JS 动态更新为对应色 -->
     <meta name="theme-color" content="#f4f7fb" />
-    <!-- 添加到主屏后以独立 App 形式打开（无浏览器 UI） -->
+    <!-- 添加到主屏后以独立 App 形式打开（无浏览器 UI）
+         注意：新版 Chrome 已把 apple- 前缀标记为废弃，标准名是 mobile-web-app-capable，
+         两个都写以兼容新老浏览器 -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>四级遗忘曲线背单词</title>

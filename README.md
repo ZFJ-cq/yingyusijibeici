@@ -130,33 +130,73 @@ npm run preview
 
 ## 🌐 部署到 GitHub Pages
 
-项目已内置自动部署工作流 `.github/workflows/deploy.yml`，只需：
+### ⚠️ 最容易踩的坑：把源码当成构建产物发布
 
-1. 在 GitHub 上新建一个仓库（例如 `cet4-words`），把本项目推送到 `main` 分支：
+本项目的**源码 `index.html` 引用的是 `/src/main.js`**（开发入口）。
+若把源码直接放到 Pages 上，浏览器会去请求 `https://<user>.github.io/src/main.js`：
+
+```
+Failed to load resource: the server responded with a status of 404 ()   main.js
+```
+
+结果就是**页面标题正常、但整页白屏**（`<div id="app">` 为空，Vue 从未挂载）。
+
+> **自检方法**：打开线上页面按 F12，看 `<div id="app">` 是否为空；
+> 或直接请求 `你的站点路径/src/main.js`，若 404 就说明发布的是**源码**。
+> 正确部署后，`index.html` 引用的是 `./assets/index-xxxx.js` 这类**构建产物**。
+
+**结论：Pages 上只放 `dist/` 的内容（`index.html` + `assets/` + `.nojekyll`），不要放 `src/`、`package.json` 等源码。**
+
+### 方式一：GitHub Actions 自动构建（推荐）
+
+项目已内置工作流 `.github/workflows/deploy.yml`，会自动探测项目位置并构建发布：
+
+| 源码位置 | 站点地址 |
+| --- | --- |
+| 仓库根目录 | `https://<user>.github.io/<repo>/` |
+| `beici/` 子目录 | `https://<user>.github.io/<repo>/beici/` |
+
+> 部署路径与源码所在目录**保持一致**，避免「源码在 `/repo/beici`、站点却在 `/repo`」的错位。
+
+步骤：
+
+1. 把本项目推送到仓库 `main` 分支（放根目录或 `beici/` 子目录都行）：
    ```bash
    git init
    git add .
    git commit -m "feat: 四级遗忘曲线背单词"
    git branch -M main
-   git remote add origin https://github.com/<你的用户名>/<仓库名>.git
+   git remote add origin https://github.com/<用户名>/<仓库名>.git
    git push -u origin main
    ```
-2. 打开仓库 **Settings → Pages**，把 **Source** 设为 **GitHub Actions**。
-3. 推送后 Actions 会自动构建并部署，稍等片刻即可访问：
-   ```
-   https://<你的用户名>.github.io/<仓库名>/
-   ```
+2. 仓库 **Settings → Pages** → **Build and deployment → Source** 改为 **GitHub Actions**。
+   **关键一步**：若保留默认的 "Deploy from a branch"，Pages 会直接发布你的**源码**，就会白屏。
+3. 等 Actions 跑完（仓库 **Actions** 页签看进度），访问上表中的地址。
 
-> 说明：
-> - 应用使用 **hash 路由**（地址形如 `.../#/review`），配合相对路径资源，**刷新子页面不会 404**，可安全托管在 Pages 的项目子路径下。
-> - 工作流会按仓库名自动设置 `BASE_PATH`（`/<仓库名>/`）。若你把仓库命名为 `<用户名>.github.io`（用户主页站点），请删除工作流里的 `BASE_PATH` 行，或改成 `BASE_PATH: /`。
-
-### 手动部署（备选，不依赖 Actions）
+### 方式二：手动部署构建产物（不依赖 Actions）
 
 ```bash
-npm run build
-# 将 dist/ 目录内容推送到 gh-pages 分支，或在 Pages 设置中选择该分支
+npm run build          # 产物在 dist/
 ```
+
+把 **`dist/` 里的内容**（`index.html`、`.nojekyll`、`assets/` 整个目录）复制到仓库对应目录，
+**替换掉原来的源码文件**，并保持 Pages 的 Source = "Deploy from a branch"。
+例如要发布到 `https://<user>.github.io/<repo>/beici/`：
+
+```bash
+# 在仓库根目录执行
+rm -rf beici && mkdir -p beici && cp -r /path/to/dist/. beici/
+git add -A && git commit -m "deploy: 发布构建产物" && git push
+```
+
+> ⚠️ `beici/` 里必须**只有构建产物**。若 `src/`、`package.json` 还留在那里，
+> 或 `index.html` 仍是源码版本，都会继续白屏。源码建议单独放在仓库其它目录。
+
+### 为什么子路径下也能正常工作
+
+- 应用使用 **hash 路由**（地址形如 `.../#/review`），刷新任意子页面都由 `index.html` 承接，**不会 404**。
+- 资源引用使用**相对路径**（`vite.config.js` 的 `base` 默认 `'./'`），
+  因此放到 `/repo/`、`/repo/beici/` 等任意子路径都能正确加载，无需改代码。
 
 ## 📖 如何使用
 

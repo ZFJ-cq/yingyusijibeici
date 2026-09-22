@@ -1,6 +1,6 @@
 name: Deploy to GitHub Pages
 
-# 推送到 main 分支时自动构建并部署到 GitHub Pages
+# 推送到 main/master 时自动构建并发布到 GitHub Pages
 on:
   push:
     branches: [main, master]
@@ -24,21 +24,55 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ----------------------------------------------------------------------
+      # 自动探测项目位置。
+      # 部署路径刻意与源码所在目录保持一致，避免出现「源码在 /repo/beici，
+      # 站点却在 /repo」这种对不上的情况：
+      #   项目在仓库根目录   ->  https://<user>.github.io/<repo>/
+      #   项目在 beici/ 子目录 ->  https://<user>.github.io/<repo>/beici/
+      # ----------------------------------------------------------------------
+      - name: Detect project directory
+        id: proj
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          if [ -f package.json ]; then
+            echo "dir=."        >> "$GITHUB_OUTPUT"
+            echo "sub="         >> "$GITHUB_OUTPUT"
+            echo "base=/${REPO}/" >> "$GITHUB_OUTPUT"
+          elif [ -f beici/package.json ]; then
+            echo "dir=beici"           >> "$GITHUB_OUTPUT"
+            echo "sub=beici"           >> "$GITHUB_OUTPUT"
+            echo "base=/${REPO}/beici/" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::未找到 package.json，请检查仓库结构（根目录或 beici/）"
+            exit 1
+          fi
+          echo "项目目录：$(grep '^dir=' "$GITHUB_OUTPUT" | tail -1)"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: ${{ steps.proj.outputs.dir }}/package-lock.json
 
       - name: Install dependencies
+        working-directory: ${{ steps.proj.outputs.dir }}
         run: npm ci || npm install
 
       - name: Build
-        # 项目站点地址形如 https://<user>.github.io/<repo>/，
-        # 因此把 base 设为 /<repo>/ ；若使用用户主页仓库 <user>.github.io，可删掉此行
+        working-directory: ${{ steps.proj.outputs.dir }}
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
+          # base 用绝对子路径，指向站点实际地址
+          BASE_PATH: ${{ steps.proj.outputs.base }}
         run: npm run build
+
+      # 把 dist 放进与源码目录同名的子路径，保证对外 URL 不变
+      - name: Stage artifact
+        run: |
+          mkdir -p "site/${{ steps.proj.outputs.sub }}"
+          cp -r "${{ steps.proj.outputs.dir }}/dist/." "site/${{ steps.proj.outputs.sub }}/"
+          find site -maxdepth 3 -type f | head -20
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -46,7 +80,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build
