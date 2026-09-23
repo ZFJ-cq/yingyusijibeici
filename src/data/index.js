@@ -74,7 +74,11 @@ const EXAM_BY_WORD = EXAM_SENTENCES.reduce((acc, s) => {
   return acc
 }, {})
 
-/** 合并后的词条上，再挂两样"加料"（只给高频词，常规词不受影响） */
+/**
+ * 合并后的词条上，再挂两样"加料"：
+ *   - phrases：仅高频词有（HIGH_FREQ_PHRASES 只含 608 高频词）
+ *   - exam：真题例句，按单词命中挂到**任意**词条（常规词也可能命中，例如 discovery / faculty）
+ */
 function attachExtras(words) {
   for (const w of words) {
     const key = String(w.word).toLowerCase()

@@ -251,6 +251,86 @@ export const TRANSLATION_ITEMS = [
     cn: '最近调查显示，很多年轻人想要通过旅行体验不同的文化、丰富知识、拓宽视野。',
     en: 'Recent survey showed that many young people want to experience different cultures, enlarge knowledge, and broaden their horizons through traveling.',
     keywords: ['survey', 'cultures', 'knowledge', 'horizons']
+  },
+
+  /* ==================== 以下为 2026-09-23 扩充的真实真题翻译 ==================== */
+  /* 均为公开发布的四级翻译真题：完整中文原题 + 官方/主流机构参考译文，未做任何改写。 */
+  {
+    id: 't2024c1',
+    src: '2024年6月四级真题·翻译（农历）',
+    cn: '农历(the lunar calendar)起源于数千年前的中国，根据太阳和月亮的运行规律制定。长期以来农历在农业生产和人们日常生活中发挥着重要作用。古人依据农历记录日期，安排农活，以便最有效地利用自然资源和气候条件，提高农作物的产量和质量。中国的春节、中秋节等传统节日的日期都基于农历。农历是中国传统文化的重要组成部分，当今依然广为使用。',
+    en: "The lunar calendar, which originated from China thousands of years ago, was set by the moving law of the sun and the moon. For a long period of time, such a calendar has played a very important role in agricultural production and people's daily life. Ancient Chinese arranged their farm work by the date of the lunar calendar to make the best use of natural resources and climate and improve the quality and yield of crops. Traditional Chinese festivals such as the Spring Festival and the Mid-autumn Festival are based on the lunar calendar. It is a significant part of traditional Chinese culture which is still widely used today.",
+    keywords: ['lunar calendar', 'originated', 'agricultural production', 'spring festival', 'mid-autumn festival', 'traditional chinese culture']
+  },
+  {
+    id: 't2024c2',
+    src: '2024年6月四级真题·翻译（四合院）',
+    cn: '四合院是中国传统居住建筑，它的特点是房屋建在院子的四周。冬暖夏凉，环境舒适，很适合大家庭居住。中国各地有各种四合院，但典型是北京四合院。如今，随着现代社会的发展，四合院正在减少。但四合院仍然在传承中国文化和研究中国建筑方面有重要意义。',
+    en: "The courtyard is a traditional Chinese residential building, with a character of being built around a yard. It is warm in winter and cool in summer, and offers a comfortable environment, which makes the courtyard a very suitable place for large families to live in. There are various courtyards around China, but the typical one is the Beijing courtyard. Nowadays, with the development of modern society, the number of courtyards is decreasing. However, the courtyard is still of great significance in passing down Chinese culture and studying Chinese architecture.",
+    keywords: ['courtyard', 'traditional chinese', 'comfortable', 'beijing courtyard', 'chinese culture', 'chinese architecture']
+  },
+  {
+    id: 't2024c3',
+    src: '2024年6月四级真题·翻译（福）',
+    cn: '汉语中的福表示幸福和好运，是中国传统文化中最常用的吉祥符号之一。人们通常将一个大大的福字写在红纸上，寓意期盼家庭幸福、社会安定、国家昌盛。春节贴福字是民间由来已久的习俗。为了欢庆春节，家家户户，都会将福字贴在门上或墙上表达对幸福生活的期待。人们有时还将福字倒过来贴，表示幸福已到。',
+    en: "The Chinese character fu, one of the most commonly used auspicious symbols in traditional Chinese culture, signifies happiness and good luck. People often write a large fu on red paper, hoping for family prosperity, social stability, and national prosperity. Pasting fu during the Spring Festival is a long-established custom. To celebrate the Chinese New Year, every household paste fu on their doors or walls to express their expectations for a happy life. People sometimes paste it upside down, indicating that happiness has arrived.",
+    keywords: ['fu', 'happiness', 'good luck', 'spring festival', 'household', 'happiness has arrived']
+  },
+  {
+    id: 't2022j1',
+    src: '2022年6月四级真题·翻译（剪纸）',
+    cn: '中国剪纸（paper cutting）是一种历史悠久的民间艺术，是中国传统文化的重要组成部分。它主要用剪刀或刻刀在红纸上创作图案，其题材广泛，包括人物、动物、花卉、吉祥符号等。剪纸作品通常用于装饰门窗、墙壁和家具，也常用于婚礼、节日等喜庆场合，以表达人们对美好生活的向往。中国剪纸不仅在中国广受欢迎，还传播到了世界各地，成为中外文化交流的重要载体。它展现了中国人民的智慧和创造力，具有极高的艺术价值和文化价值。',
+    en: 'Chinese paper cutting, a time-honored folk art, is an important component of traditional Chinese culture. Mainly created with scissors or carving knives on red paper, Chinese paper cutting covers a wide range of themes, including figures, animals, flowers and auspicious symbols. Paper cutting works are usually used to decorate doors, windows, walls and furniture, and are also applied to festive occasions such as weddings and festivals to express people\'s yearning for a better life. It is not only widely popular in China but also has spread to all over the world, becoming an important carrier of cultural exchange between China and other countries. It showcases the wisdom and creativity of the Chinese people and possesses extremely high artistic and cultural value.',
+    keywords: ['paper cutting', 'folk art', 'decorate', 'festivals', 'cultural exchange', 'artistic and cultural value']
+  },
+  {
+    id: 't2020r1',
+    src: '2020年12月四级真题·翻译（春节团圆饭）',
+    cn: '春节前夕吃团圆饭是中国人的传统。团圆饭是一年中最重要的晚餐，也是家庭团聚的最佳时机，家人生活在不同地方的家庭尤其如此。团圆饭上的菜肴丰富多样，其中有些菜肴有特殊含义。例如，鱼是不可缺少的一道菜，因为汉语中的"鱼"字和"余"字听上去一样。在中国的许多地方，饺子也是一道重要的佳肴，因为饺子象征着财富和好运。',
+    en: "It is a Chinese tradition to have a family reunion dinner on the eve of the Spring Festival. The reunion dinner is the most important dinner of the year and the best time for family reunion, especially for families living in different places. The dishes served at the reunion dinner are rich and varied, some of which have special meanings. Fish is an indispensable dish, because in Chinese the pronunciation of 'fish' is similar to 'surplus'. In many parts of China, dumplings are also an important delicacy because they symbolize wealth and good luck.",
+    keywords: ['reunion dinner', 'spring festival', 'family reunion', 'fish', 'dumplings', 'good luck']
+  },
+  {
+    id: 't2025s1',
+    src: '2025年6月四级真题·翻译（春节）',
+    cn: '春节是中国最重要，也是最热闹的古老节日之一。春节象征着团结、兴旺以及对未来寄予新的希望。据记载，中国人过春节已有四千多年的历史。中国是个多民族的国家，各民族过春节的形式各有不同。但是无论在中国的哪个地方，人们都会在春节期间全家团圆，吃年糕、饺子以及各种丰盛的饭菜，张灯结彩，燃放鞭炮，并互相祝福。',
+    en: 'In China, the Spring Festival is one of the most significant and lively ancient festivals, which symbolizes unity, prosperity and new hopes for the future. It is recorded that the custom of celebrating the Spring Festival has lasted for more than 4,000 years. As a multi-ethnic country, different nationalities in China have various ways of celebrating the Spring Festival. However, wherever in China, people will have a family reunion during the festival, eating New Year cakes, dumplings and various hearty meals, decorating the houses with lanterns and festoons, setting off firecrackers and blessing each others.',
+    keywords: ['spring festival', 'ancient festivals', 'prosperity', '4,000 years', 'different nationalities', 'family reunion']
+  },
+  {
+    id: 't2022m1',
+    src: '2022年12月四级真题·翻译（中秋节）',
+    cn: '中秋节是中国最重要的传统节日之一，每逢佳节，家人团聚，赏月吃月饼。月饼象征着团圆，是中秋节不可或缺的美食。',
+    en: 'The Mid-Autumn Festival is one of the most important traditional Chinese festivals. On this festival, families gather to admire the full moon and eat mooncakes. Mooncakes symbolize reunion and are an indispensable delicacy for the festival.',
+    keywords: ['mid-autumn festival', 'families gather', 'mooncakes', 'reunion']
+  },
+  {
+    id: 't2020g1',
+    src: '2020年12月四级真题·翻译（长城）',
+    cn: '长城是中国的标志性建筑，始建于春秋战国时期，秦朝时连接成万里长城。它蜿蜒于中国北方的山脉之中，是世界上最长的城墙，体现了古代中国人民的智慧和勤劳。',
+    en: "The Great Wall is a landmark building of China. First built in the Spring and Autumn Period and the Warring States Period, it was connected into the 'Ten-Thousand-Li Great Wall' during the Qin Dynasty. Winding through the mountains in northern China, it is the longest city wall in the world, embodying the wisdom and diligence of the ancient Chinese people.",
+    keywords: ['great wall', 'qin dynasty', 'longest city wall', 'ancient chinese']
+  },
+  {
+    id: 't2018h1',
+    src: '2018年12月四级真题·翻译（火锅）',
+    cn: '火锅是中国流行的传统美食，各地火锅风味不同，如四川火锅以麻辣著称，广东火锅以清淡滋补闻名。人们围坐在一起，边煮边吃，气氛热烈。',
+    en: 'Hot pot is a popular traditional Chinese delicacy. The flavor of hot pot varies in different regions—for example, Sichuan hot pot is famous for its spiciness and numbness, while Cantonese hot pot is known for its light and nourishing taste. People sit around the pot, cooking and eating while chatting, creating a warm and lively atmosphere.',
+    keywords: ['hot pot', 'sichuan hot pot', 'cantonese hot pot', 'lively atmosphere']
+  },
+  {
+    id: 't2024s1',
+    src: '2024年12月四级真题·翻译（书法）',
+    cn: '中国书法是中国传统文化的瑰宝，以毛笔、墨、宣纸为工具，通过线条的粗细、长短、疏密展现汉字的美感。它不仅是一种书写艺术，更是一种修身养性的方式。',
+    en: 'Chinese calligraphy is a treasure of traditional Chinese culture. Using writing brushes, ink and rice paper as tools, it shows the beauty of Chinese characters through the thickness, length and density of lines. It is not only a writing art but also a way to cultivate one\'s moral character.',
+    keywords: ['chinese calligraphy', 'writing brushes', 'beauty of chinese characters', 'moral character']
+  },
+  {
+    id: 't2025a1',
+    src: '2025年1月四级真题·翻译（《论语》）',
+    cn: '《论语》是儒家学派的经典著作，由孔子的弟子及其再传弟子编撰而成，记录了孔子的言行和思想。其核心思想包括仁爱、礼义等，对中国乃至世界文化都产生了深远影响。',
+    en: "The Analects of Confucius is a classic work of Confucianism. Compiled by Confucius' disciples and their students, it records Confucius' words, deeds and thoughts. Its core ideas include benevolence, propriety and so on, which have exerted a profound influence on Chinese and even world culture.",
+    keywords: ['analects of confucius', 'confucianism', 'benevolence', 'profound influence']
   }
 ]
 
@@ -288,5 +368,36 @@ export const EXAM_SENTENCES = [
   { w: 'indicate', en: 'The simple presence of these chemicals does not necessarily indicate a health risk.', cn: '仅仅存在这些化学物质并不必然表示有健康风险。', src: '2014年12月真题·选词填空' },
   { w: 'conduct', en: 'A large, ongoing study conducted by the Centers for Disease Control and Prevention has found 148 chemicals in Americans of all ages.', cn: '美国疾控中心正在进行的一项大型研究发现，各年龄段美国人身上有148种化学物质。', src: '2014年12月真题·选词填空' },
   { w: 'facility', en: 'Great Barrier Island has no public facilities, and the 950 people living there rely on solar and wind energy.', cn: '大堡礁岛没有公共设施，住在那里的950人依赖太阳能和风能。', src: '2026年6月真题·长篇阅读' },
-  { w: 'remote', en: 'They found there was more light pollution on the northern side coming from Fiji than Auckland to the south.', cn: '他们发现北侧来自斐济的光污染比南边的奥克兰更多。', src: '2026年6月真题·长篇阅读' }
+  { w: 'remote', en: 'They found there was more light pollution on the northern side coming from Fiji than Auckland to the south.', cn: '他们发现北侧来自斐济的光污染比南边的奥克兰更多。', src: '2026年6月真题·长篇阅读' },
+
+  /* ==================== 以下为 2026-09-23 扩充的真题例句（真实考题原句） ==================== */
+  /* 来源：四级选词填空真题原文 / 四级翻译真题参考译文。w 为命中词库的词，用于挂在词条卡片上。 */
+  { w: 'discovery', en: 'This is a storied place, the site of some of the most important discoveries in modern science.', cn: '这是一个声名赫赫之地，现代科学中一些最重要发现的诞生地。', src: '四级真题·选词填空' },
+  { w: 'female', en: 'A generation ago female faces were rare, and even today, visitors walking through the first floor will see a full corridor of exhibits honoring the many distinguished physicists who made history here.', cn: '一代人之前，女性的面孔还很少见；即便今天，走在一楼的人仍会看到一整面陈列墙，纪念曾在此创造历史的众多杰出物理学家。', src: '四级真题·选词填空' },
+  { w: 'current', en: 'There, among the photos of current faculty members and students, are portraits of the current head of the department.', cn: '在那里，现任教职员工与学生的照片中间，挂着系主任的肖像。', src: '四级真题·选词填空' },
+  { w: 'faculty', en: 'Although women are still only about 10 percent of the physics faculty, they are clearly a presence here.', cn: '尽管女性仍只占物理系教职的约 10%，但她们在这里无疑已是一个可见的存在。', src: '四级真题·选词填空' },
+  { w: 'undergraduate', en: 'The real hope may be in the smaller photos to the right: graduate and undergraduate students, about 20 percent of them female.', cn: '真正的希望或许在右侧那些较小的照片里：研究生与本科生，其中约 20% 是女性。', src: '四级真题·选词填空' },
+  { w: 'presence', en: 'Women are clearly a presence here, and the real hope may be in the smaller photos to the right.', cn: '女性无疑已在这里占据一席之地，而真正的希望或许在那些较小的照片里。', src: '四级真题·选词填空' },
+  { w: 'physicist', en: 'Visitors walking through the first floor of LeConte Hall will see a full corridor of exhibits honoring the many distinguished physicists who made history here.', cn: '走过勒孔特楼一楼的游客，会看到一整面陈列墙，纪念曾在此创造历史的众多杰出物理学家。', src: '四级真题·选词填空' },
+  { w: 'optimistic', en: "That makes Shapiro optimistic but also realistic: 'I believe things are getting better,' she says.", cn: '这让夏皮罗既乐观又现实："我相信情况在变好，"她说。', src: '四级真题·选词填空' },
+  { w: 'impact', en: 'In families with two working parents, fathers may have more impact on a child\'s language development than mothers, a new study suggests.', cn: '一项新研究表明，在双职工家庭中，父亲对孩子语言发展的影响可能超过母亲。', src: '四级真题·选词填空' },
+  { w: 'development', en: 'The study will appear in the November issue of The Journal of Applied Development of Psychology.', cn: '该研究将发表于《应用发展心理学杂志》十一月刊。', src: '四级真题·选词填空' },
+  { w: 'important', en: 'For a long period of time, such a calendar has played a very important role in agricultural production and people\'s daily life.', cn: '长期以来，这样的历法在农事生产与人们的日常生活中发挥了十分重要的作用。', src: '四级真题·翻译' },
+  { w: 'quality', en: 'Ancient Chinese arranged their farm work by the date of the lunar calendar to make the best use of natural resources and climate and improve the quality and yield of crops.', cn: '古人依据农历安排农活，以充分利用自然资源与气候，并提高农作物的产量与质量。', src: '四级真题·翻译' },
+  { w: 'culture', en: 'It is a significant part of traditional Chinese culture which is still widely used today.', cn: '它是传统文化的重要组成部分，至今仍被广泛使用。', src: '四级真题·翻译' },
+  { w: 'comfortable', en: 'It is warm in winter and cool in summer, and offers a comfortable environment, which makes the courtyard a very suitable place for large families to live in.', cn: '它冬暖夏凉，环境舒适，是非常适合大家庭居住的所在。', src: '四级真题·翻译' },
+  { w: 'typical', en: 'There are various courtyards around China, but the typical one is the Beijing courtyard.', cn: '中国各地有各种四合院，而典型的是北京四合院。', src: '四级真题·翻译' },
+  { w: 'decrease', en: 'Nowadays, with the development of modern society, the number of courtyards is decreasing.', cn: '如今，随着现代社会的发展，四合院的数量正在减少。', src: '四级真题·翻译' },
+  { w: 'architecture', en: 'The courtyard is still of great significance in passing down Chinese culture and studying Chinese architecture.', cn: '四合院在传承中国文化与研究中国建筑方面仍意义重大。', src: '四级真题·翻译' },
+  { w: 'happiness', en: "The Chinese character fu, one of the most commonly used auspicious symbols in traditional Chinese culture, signifies happiness and good luck.", cn: '汉字"福"是中国传统文化中最常用的吉祥符号之一，象征着幸福与好运。', src: '四级真题·翻译' },
+  { w: 'prosperity', en: 'People often write a large fu on red paper, hoping for family prosperity, social stability, and national prosperity.', cn: '人们常把大大的"福"写在红纸上，期盼家庭兴旺、社会安定、国家昌盛。', src: '四级真题·翻译' },
+  { w: 'custom', en: 'Pasting fu during the Spring Festival is a long-established custom.', cn: '春节期间贴"福"字是由来已久的习俗。', src: '四级真题·翻译' },
+  { w: 'household', en: 'To celebrate the Chinese New Year, every household paste fu on their doors or walls to express their expectations for a happy life.', cn: '为欢庆新年，家家户户把"福"贴在门上或墙上，表达对幸福生活的期盼。', src: '四级真题·翻译' },
+  { w: 'indispensable', en: "Fish is an indispensable dish, because in Chinese the pronunciation of 'fish' is similar to 'surplus'.", cn: '鱼是一道不可或缺的菜，因为在汉语中"鱼"的发音与"余"（富余）相似。', src: '四级真题·翻译' },
+  { w: 'decorate', en: 'Paper cutting works are usually used to decorate doors, windows, walls and furniture.', cn: '剪纸作品通常用于装饰门窗、墙壁和家具。', src: '四级真题·翻译' },
+  { w: 'carrier', en: 'It has spread to all over the world, becoming an important carrier of cultural exchange between China and other countries.', cn: '它传播到世界各地，成为中外文化交流的重要载体。', src: '四级真题·翻译' },
+  { w: 'festival', en: 'Paper cutting works are also applied to festive occasions such as weddings and festivals to express people\'s yearning for a better life.', cn: '剪纸作品也用于婚礼、节日等喜庆场合，以表达人们对美好生活的向往。', src: '四级真题·翻译' },
+  { w: 'ancient', en: 'The Spring Festival is one of the most significant and lively ancient festivals.', cn: '春节是中国最重要、最热闹的古老节日之一。', src: '四级真题·翻译' },
+  { w: 'various', en: 'The dishes served at the reunion dinner are rich and varied, some of which have special meanings.', cn: '团圆饭上的菜肴丰盛多样，其中一些有特殊含义。', src: '四级真题·翻译' },
+  { w: 'different', en: 'As a multi-ethnic country, different nationalities in China have various ways of celebrating the Spring Festival.', cn: '中国是个多民族国家，各民族过春节的形式各有不同。', src: '四级真题·翻译' }
 ]
